@@ -1,8 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.4
+Date: ????
+  Changes:
+---------------------------------------------------------------------------------------------------
 Version: 1.0.3
 Date: 2025-02-02
   Changes:
-    - Hidden planets are now excluded from connection redraw.
+    - Hidden planets and connections are now excluded from the connection redraw.
     - Compatibility with planets with no icon.
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.2
