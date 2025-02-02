@@ -425,7 +425,7 @@ local function new_space_connection(from, to)
     local from_prototype = data.raw.planet[from] or data.raw["space-location"][from]
     local to_prototype = data.raw.planet[to] or data.raw["space-location"][to]
 
-    table.insert(connections_to_add, {
+    local connection = {
         type = "space-connection",
         name = from .. "-" .. to,
         subgroup = "planet-connections",
@@ -433,9 +433,13 @@ local function new_space_connection(from, to)
         to = to,
         order = from .. "-" .. to,
         length = math.ceil(connection_length(from, to) / RESOLUTION) * RESOLUTION,
-        asteroid_spawn_definitions = definitions,
-        icons = {{
-            icon = "__space-age__/graphics/icons/planet-route.png"
+        asteroid_spawn_definitions = definitions
+    }
+
+    if (from_prototype.icon and from_prototype.icon_size) and (to_prototype.icon and to_prototype.icon_size) then
+        connection.icons = {{
+            icon = "__space-age__/graphics/icons/planet-route.png",
+            icon_size = 64
         }, {
             icon = from_prototype.icon,
             icon_size = from_prototype.icon_size or 64,
@@ -447,7 +451,12 @@ local function new_space_connection(from, to)
             scale = 0.333 * (64 / (to_prototype.icon_size or 64)),
             shift = {6, 6}
         }}
-    })
+    else
+        connection.icon = "__space-age__/graphics/icons/planet-route.png"
+        connection.icon_size = 64
+    end
+
+    table.insert(connections_to_add, connection)
 end
 
 for _, edge in ipairs(edges) do
