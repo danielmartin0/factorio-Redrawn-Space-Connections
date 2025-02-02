@@ -21,6 +21,10 @@ local nodes = {}
 
 local SCALE_FACTOR = 1250
 
+if mods["Tiered-Solar-System"] then
+	SCALE_FACTOR = 1000
+end
+
 local function connection_length(from_name, to_name)
 	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]
 	local to_planet = data.raw.planet[to_name] or data.raw["space-location"][to_name]
@@ -74,20 +78,6 @@ local function add_node(name, loc)
 
 	local virtual_x = polar_x
 	local virtual_y = polar_y * 13
-
-	log(
-		"TSS: adding node "
-			.. name
-			.. " at "
-			.. x
-			.. ", "
-			.. y
-			.. " (virtual: "
-			.. virtual_x
-			.. ", "
-			.. virtual_y
-			.. ")"
-	)
 
 	table.insert(nodes, {
 		name = name,
