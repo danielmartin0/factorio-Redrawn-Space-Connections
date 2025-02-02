@@ -1,17 +1,5 @@
 local asteroid_util = require("__space-age__.prototypes.planet.asteroid-spawn-definitions")
 
-for _, loc in pairs(data.raw["space-location"] or {}) do
-	if loc.tier then
-		loc.orientation = 1 - ((loc.tier + 1) / 6)
-	end
-end
-
-for _, loc in pairs(data.raw["planet"] or {}) do
-	if loc.tier then
-		loc.orientation = 1 - ((loc.tier + 1) / 6)
-	end
-end
-
 local saved_asteroid_definitions = {}
 
 local fixed_edges = {}
