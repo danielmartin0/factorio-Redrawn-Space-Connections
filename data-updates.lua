@@ -1,0 +1,26 @@
+-- == Vanilla ==--
+if data.raw["space-location"]["shattered-planet"] then
+    data.raw["space-location"]["shattered-planet"].redrawn_connections_exclude = true
+end
+if data.raw["space-location"]["solar-system-edge"] then
+    data.raw["space-location"]["solar-system-edge"].redrawn_connections_length_multiplier = 4.8
+end
+
+-- == Maraxsis ==--
+
+if data.raw.planet["maraxsis-trench"] then
+    data.raw.planet["maraxsis-trench"].redrawn_connections_exclude = true
+end
+
+-- == PlanetsLib ==--
+
+for _, loc in pairs(data.raw["space-location"]) do
+    if loc.subgroup and loc.subgroup == "satellites" then
+        loc.redrawn_connections_exclude = true
+    end
+end
+for _, loc in pairs(data.raw.planet) do
+    if loc.subgroup and loc.subgroup == "satellites" then
+        loc.redrawn_connections_exclude = true
+    end
+end

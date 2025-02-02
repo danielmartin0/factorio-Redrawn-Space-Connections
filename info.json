@@ -1,0 +1,16 @@
+{
+    "name": "Redrawn-Space-Connections",
+    "author": "thesixthroc",
+    "version": "1.0.0",
+    "title": "Redrawn Space Connections",
+    "description": "Redraws all connections on the space map to improve navigation between planets.",
+    "contact": "Discord: thesixthroc",
+    "factorio_version": "2.0",
+    "dependencies": [
+        "base >= 2.0.0",
+        "space-age >= 2.0.0",
+        "PlanetsLib >= 1.1.41",
+        "! Planetary-Distance-Adjustments"
+    ],
+    "space_travel_required": true
+}
