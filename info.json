@@ -1,9 +1,9 @@
 {
     "name": "Redrawn-Space-Connections",
     "author": "thesixthroc",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "title": "Redrawn Space Connections",
-    "description": "Redraws all connections on the space map to improve navigation between planets.",
+    "description": "Algorithmically redraws connections on the space map to improve navigation between planets. This mod does not move any planets.",
     "contact": "Discord: thesixthroc",
     "factorio_version": "2.0",
     "dependencies": [
