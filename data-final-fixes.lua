@@ -63,6 +63,12 @@ local function connection_length(from_name, to_name)
 	return curved_distance * SCALE_FACTOR
 end
 
+local function connection_length_snapped(from_name, to_name)
+	local distance = connection_length(from_name, to_name)
+
+	return math.ceil(distance / 1000) * 1000
+end
+
 local function add_node(name, loc)
 	if loc.redrawn_connections_exclude or name == "space-location-unknown" then
 		return
@@ -314,7 +320,8 @@ table.sort(edges, function(a, b)
 	return a.length < b.length
 end)
 
-local filteredEdges = {}
+local angleFilteredEdges = {}
+
 for _, edge in ipairs(edges) do
 	local nodeA = nodes_by_name[edge.a]
 	local nodeB = nodes_by_name[edge.b]
@@ -365,7 +372,7 @@ for _, edge in ipairs(edges) do
 	end
 
 	if not conflict then
-		table.insert(filteredEdges, edge)
+		table.insert(angleFilteredEdges, edge)
 		table.insert(acceptedAngles[nodeA.name].virtual, virtualAngleA)
 		table.insert(acceptedAngles[nodeA.name].real, realAngleA)
 		table.insert(acceptedAngles[nodeB.name].virtual, virtualAngleB)
@@ -375,11 +382,64 @@ for _, edge in ipairs(edges) do
 	::continue_edge::
 end
 
-edges = filteredEdges
+edges = angleFilteredEdges
 
-local RESOLUTION = 1000
+local graph = {}
+for _, edge in ipairs(edges) do
+	graph[edge.a] = graph[edge.a] or {}
+	graph[edge.b] = graph[edge.b] or {}
+	local snapped_length = connection_length_snapped(edge.a, edge.b)
+	table.insert(graph[edge.a], { neighbor = edge.b, weight = snapped_length })
+	table.insert(graph[edge.b], { neighbor = edge.a, weight = snapped_length })
+end
 
-local connections_to_add = {}
+local function find_shortest_path(source, target, exclude_edge)
+	local distances = {}
+	local visited = {}
+	for node, _ in pairs(graph) do
+		distances[node] = math.huge
+	end
+	distances[source] = 0
+
+	while true do
+		local current, currentDist = nil, math.huge
+		for node, dist in pairs(distances) do
+			if not visited[node] and dist < currentDist then
+				current = node
+				currentDist = dist
+			end
+		end
+		if not current or current == target then
+			break
+		end
+		visited[current] = true
+
+		for _, edge in ipairs(graph[current]) do
+			if
+				not (current == exclude_edge.a and edge.neighbor == exclude_edge.b)
+				and not (current == exclude_edge.b and edge.neighbor == exclude_edge.a)
+			then
+				local newDist = distances[current] + edge.weight
+				if newDist < distances[edge.neighbor] then
+					distances[edge.neighbor] = newDist
+				end
+			end
+		end
+	end
+	return distances[target]
+end
+
+local triangle_filtered_edges = {}
+for _, edge in ipairs(edges) do
+	local direct_length = connection_length_snapped(edge.a, edge.b)
+	local alternative_length = find_shortest_path(edge.a, edge.b, edge)
+
+	if alternative_length > direct_length then
+		table.insert(triangle_filtered_edges, edge)
+	end
+end
+
+edges = triangle_filtered_edges
 
 local function get_asteroid_definitions(from, to)
 	if saved_asteroid_definitions[from .. "-" .. to] then
@@ -407,7 +467,12 @@ local function get_asteroid_definitions(from, to)
 	return asteroid_util.spawn_definitions(asteroid_util.gleba_fulgora), false
 end
 
-local function new_space_connection(from, to)
+local connections_to_add = {}
+
+for _, edge in ipairs(edges) do
+	local from = edge.a
+	local to = edge.b
+
 	local definitions, should_flip = get_asteroid_definitions(from, to)
 
 	if should_flip then
@@ -424,16 +489,9 @@ local function new_space_connection(from, to)
 		from = from,
 		to = to,
 		order = from .. "-" .. to,
-		length = math.ceil(connection_length(from, to) / RESOLUTION) * RESOLUTION,
+		length = connection_length_snapped(from, to),
 		asteroid_spawn_definitions = definitions,
 	}
-
-	log("from: " .. from)
-	log("from_prototype: " .. serpent.block(from_prototype))
-	log("from_prototype.icon: " .. tostring(from_prototype.icon))
-	log("from_prototype.icon_size: " .. tostring(from_prototype.icon_size))
-	log("to_prototype.icon: " .. tostring(to_prototype.icon))
-	log("to_prototype.icon_size: " .. tostring(to_prototype.icon_size))
 
 	if from_prototype.icon and to_prototype.icon then
 		connection.icons = {
@@ -460,10 +518,6 @@ local function new_space_connection(from, to)
 	end
 
 	table.insert(connections_to_add, connection)
-end
-
-for _, edge in ipairs(edges) do
-	new_space_connection(edge.a, edge.b)
 end
 
 data:extend(connections_to_add)
