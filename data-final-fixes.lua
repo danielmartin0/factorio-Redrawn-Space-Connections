@@ -332,115 +332,7 @@ table.sort(edges, function(a, b)
 	return a.length < b.length
 end)
 
-local angleFilteredEdges = {}
-
-local REAL_ANGLE_CONFLICT_DEGREES = 5
-local VIRTUAL_ANGLE_CONFLICT_DEGREES = 10
-
-for _, edge in ipairs(edges) do
-	local nodeA = nodes_by_name[edge.a]
-	local nodeB = nodes_by_name[edge.b]
-	if not nodeA or not nodeB then
-		goto continue_edge
-	end
-
-	local virtualAngleA = math.atan2(nodeB.virtual_y - nodeA.virtual_y, nodeB.virtual_x - nodeA.virtual_x)
-	local virtualAngleB = math.atan2(nodeA.virtual_y - nodeB.virtual_y, nodeA.virtual_x - nodeB.virtual_x)
-
-	local realAngleA = math.atan2(nodeB.real_y - nodeA.real_y, nodeB.real_x - nodeA.real_x)
-	local realAngleB = math.atan2(nodeA.real_y - nodeB.real_y, nodeA.real_x - nodeB.real_x)
-
-	local conflict = false
-	local conflict_reason = ""
-
-	-- Check virtual angle A
-	for _, existingAngle in ipairs(acceptedAngles[nodeA.name].virtual) do
-		local angle_diff = relative_angle_degrees(existingAngle, virtualAngleA)
-		if angle_diff < VIRTUAL_ANGLE_CONFLICT_DEGREES then
-			conflict = true
-			conflict_reason = string.format(
-				"Virtual angle A conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
-				virtualAngleA * 180 / math.pi,
-				existingAngle * 180 / math.pi,
-				angle_diff
-			)
-			break
-		end
-	end
-
-	-- Check real angle A
-	if not conflict then
-		for _, existingAngle in ipairs(acceptedAngles[nodeA.name].real) do
-			local angle_diff = relative_angle_degrees(existingAngle, realAngleA)
-			if angle_diff < REAL_ANGLE_CONFLICT_DEGREES then
-				conflict = true
-				conflict_reason = string.format(
-					"Real angle A conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
-					realAngleA * 180 / math.pi,
-					existingAngle * 180 / math.pi,
-					angle_diff
-				)
-				break
-			end
-		end
-	end
-
-	-- Check virtual angle B
-	if not conflict then
-		for _, existingAngle in ipairs(acceptedAngles[nodeB.name].virtual) do
-			local angle_diff = relative_angle_degrees(existingAngle, virtualAngleB)
-			if angle_diff < VIRTUAL_ANGLE_CONFLICT_DEGREES then
-				conflict = true
-				conflict_reason = string.format(
-					"Virtual angle B conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
-					virtualAngleB * 180 / math.pi,
-					existingAngle * 180 / math.pi,
-					angle_diff
-				)
-				break
-			end
-		end
-	end
-
-	-- Check real angle B
-	if not conflict then
-		for _, existingAngle in ipairs(acceptedAngles[nodeB.name].real) do
-			local angle_diff = relative_angle_degrees(existingAngle, realAngleB)
-			if angle_diff < REAL_ANGLE_CONFLICT_DEGREES then
-				conflict = true
-				conflict_reason = string.format(
-					"Real angle B conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
-					realAngleB * 180 / math.pi,
-					existingAngle * 180 / math.pi,
-					angle_diff
-				)
-				break
-			end
-		end
-	end
-
-	if conflict then
-		log(
-			string.format(
-				"Redrawn Space Connections: Connection %s to %s filtered out due to %s",
-				edge.a,
-				edge.b,
-				conflict_reason
-			)
-		)
-	else
-		table.insert(angleFilteredEdges, edge)
-		table.insert(acceptedAngles[nodeA.name].virtual, virtualAngleA)
-		table.insert(acceptedAngles[nodeA.name].real, realAngleA)
-		table.insert(acceptedAngles[nodeB.name].virtual, virtualAngleB)
-		table.insert(acceptedAngles[nodeB.name].real, realAngleB)
-	end
-
-	::continue_edge::
-end
-
-edges = angleFilteredEdges
-
+-- Build graph first
 local graph = {}
 for _, edge in ipairs(edges) do
 	graph[edge.a] = graph[edge.a] or {}
@@ -488,7 +380,7 @@ end
 
 local triangle_filtered_edges = {}
 
-local TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER = 1.1
+local TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER = 1
 
 for _, edge in ipairs(edges) do
 	local direct_length = connection_length_snapped(edge.a, edge.b)
@@ -510,6 +402,123 @@ for _, edge in ipairs(edges) do
 end
 
 edges = triangle_filtered_edges
+
+local angleFilteredEdges = {}
+
+for _, edge in ipairs(edges) do
+	edge.length = connection_length(edge.a, edge.b)
+end
+
+table.sort(edges, function(a, b)
+	return a.length < b.length
+end)
+
+local REAL_ANGLE_CONFLICT_DEGREES = 5
+local VIRTUAL_ANGLE_CONFLICT_DEGREES = 10
+
+for _, edge in ipairs(edges) do
+	local nodeA = nodes_by_name[edge.a]
+	local nodeB = nodes_by_name[edge.b]
+	if not nodeA or not nodeB then
+		goto continue_edge
+	end
+
+	local virtualAngleA = math.atan2(nodeB.virtual_y - nodeA.virtual_y, nodeB.virtual_x - nodeA.virtual_x)
+	local virtualAngleB = math.atan2(nodeA.virtual_y - nodeB.virtual_y, nodeA.virtual_x - nodeB.virtual_x)
+
+	local realAngleA = math.atan2(nodeB.real_y - nodeA.real_y, nodeB.real_x - nodeA.real_x)
+	local realAngleB = math.atan2(nodeA.real_y - nodeB.real_y, nodeA.real_x - nodeB.real_x)
+
+	local conflict = false
+	local conflict_reason = ""
+
+	-- Check virtual angles at A
+	for _, existingAngle in ipairs(acceptedAngles[nodeA.name].virtual) do
+		local angle_diff = relative_angle_degrees(existingAngle, virtualAngleA)
+		if angle_diff < VIRTUAL_ANGLE_CONFLICT_DEGREES then
+			conflict = true
+			conflict_reason = string.format(
+				"Virtual angle A conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
+				virtualAngleA * 180 / math.pi,
+				existingAngle * 180 / math.pi,
+				angle_diff
+			)
+			break
+		end
+	end
+
+	-- Check real angles at A
+	if not conflict then
+		for _, existingAngle in ipairs(acceptedAngles[nodeA.name].real) do
+			local angle_diff = relative_angle_degrees(existingAngle, realAngleA)
+			if angle_diff < REAL_ANGLE_CONFLICT_DEGREES then
+				conflict = true
+				conflict_reason = string.format(
+					"Real angle A conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
+					realAngleA * 180 / math.pi,
+					existingAngle * 180 / math.pi,
+					angle_diff
+				)
+				break
+			end
+		end
+	end
+
+	-- Check virtual angles at B
+	if not conflict then
+		for _, existingAngle in ipairs(acceptedAngles[nodeB.name].virtual) do
+			local angle_diff = relative_angle_degrees(existingAngle, virtualAngleB)
+			if angle_diff < VIRTUAL_ANGLE_CONFLICT_DEGREES then
+				conflict = true
+				conflict_reason = string.format(
+					"Virtual angle B conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
+					virtualAngleB * 180 / math.pi,
+					existingAngle * 180 / math.pi,
+					angle_diff
+				)
+				break
+			end
+		end
+	end
+
+	-- Check real angles at B
+	if not conflict then
+		for _, existingAngle in ipairs(acceptedAngles[nodeB.name].real) do
+			local angle_diff = relative_angle_degrees(existingAngle, realAngleB)
+			if angle_diff < REAL_ANGLE_CONFLICT_DEGREES then
+				conflict = true
+				conflict_reason = string.format(
+					"Real angle B conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
+					realAngleB * 180 / math.pi,
+					existingAngle * 180 / math.pi,
+					angle_diff
+				)
+				break
+			end
+		end
+	end
+
+	if conflict then
+		log(
+			string.format(
+				"Redrawn Space Connections: Connection %s to %s filtered out due to %s",
+				edge.a,
+				edge.b,
+				conflict_reason
+			)
+		)
+	else
+		table.insert(angleFilteredEdges, edge)
+		table.insert(acceptedAngles[nodeA.name].virtual, virtualAngleA)
+		table.insert(acceptedAngles[nodeA.name].real, realAngleA)
+		table.insert(acceptedAngles[nodeB.name].virtual, virtualAngleB)
+		table.insert(acceptedAngles[nodeB.name].real, realAngleB)
+	end
+
+	::continue_edge::
+end
+
+edges = angleFilteredEdges
 
 local function get_asteroid_definitions(from, to)
 	if saved_asteroid_definitions[from .. "-" .. to] then

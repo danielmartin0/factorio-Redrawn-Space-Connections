@@ -3,6 +3,7 @@ Version: 1.1.1
 Date: 2025-02-03
   Changes:
     - Algorithm updated to suppress radial paths less heavily.
+    - Fixed the thin-angle filtering code from removing more paths than intended.
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.0
 Date: 2025-02-03
