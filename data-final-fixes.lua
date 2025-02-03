@@ -428,7 +428,14 @@ local function new_space_connection(from, to)
 		asteroid_spawn_definitions = definitions,
 	}
 
-	if (from_prototype.icon and from_prototype.icon_size) and (to_prototype.icon and to_prototype.icon_size) then
+	log("from: " .. from)
+	log("from_prototype: " .. serpent.block(from_prototype))
+	log("from_prototype.icon: " .. tostring(from_prototype.icon))
+	log("from_prototype.icon_size: " .. tostring(from_prototype.icon_size))
+	log("to_prototype.icon: " .. tostring(to_prototype.icon))
+	log("to_prototype.icon_size: " .. tostring(to_prototype.icon_size))
+
+	if from_prototype.icon and to_prototype.icon then
 		connection.icons = {
 			{
 				icon = "__space-age__/graphics/icons/planet-route.png",
