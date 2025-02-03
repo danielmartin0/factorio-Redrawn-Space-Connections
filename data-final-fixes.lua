@@ -19,11 +19,7 @@ end
 
 local nodes = {}
 
-local SCALE_FACTOR = 1250
-
-if mods["Tiered-Solar-System"] then
-	SCALE_FACTOR = 1000
-end
+local SCALE_FACTOR = settings.startup["Redrawn-Space-Connections-map-scale"].value
 
 local function connection_length(from_name, to_name)
 	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]

@@ -2,6 +2,7 @@
 Version: 1.1.2
 Date: ????
   Changes:
+    - Support for mods changing the overall scale of space connections.
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.1
 Date: 2025-02-03
