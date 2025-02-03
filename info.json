@@ -1,7 +1,7 @@
 {
     "name": "Redrawn-Space-Connections",
     "author": "thesixthroc",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "title": "Redrawn Space Connections",
     "description": "Algorithmically redraws the routes on the space map to improve navigation between modded planets.",
     "contact": "Discord: thesixthroc",
