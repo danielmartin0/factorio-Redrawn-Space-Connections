@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.0
-Date: ????
+Date: 2025-02-03
   Changes:
     - Respect for the Triangle Inequality: If a route between two locations is longer or equal to another path between the same two locations, the route is deleted.
 ---------------------------------------------------------------------------------------------------
