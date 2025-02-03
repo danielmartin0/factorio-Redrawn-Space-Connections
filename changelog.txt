@@ -2,6 +2,7 @@
 Version: 1.1.1
 Date: ????
   Changes:
+    - Algorithm updated to suppress radial paths less heavily.
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.0
 Date: 2025-02-03
