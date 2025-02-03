@@ -2,6 +2,7 @@
 Version: 1.0.7
 Date: ????
   Changes:
+    - Since there is a community map using Tiered-Solar-System and Planetary-Distance-Adjustments, the incompatibility with Planetary-Distance-Adjustments has been removed — the latter mod now simply has no effect if Redrawn Space Connections is installed.
 ---------------------------------------------------------------------------------------------------
 Version: 1.0.6
 Date: 2025-02-02
