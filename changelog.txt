@@ -2,6 +2,7 @@
 Version: 1.1.5
 Date: ????
   Changes:
+    - redrawn_connections_length_multiplier is now 100 for shattered-planet.
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.4
 Date: 2025-02-04
