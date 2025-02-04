@@ -2,6 +2,7 @@
 Version: 1.1.3
 Date: ????
   Changes:
+    - Remove log statements. Fix missing license file.
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.2
 Date: 2025-02-03

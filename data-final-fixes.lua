@@ -100,20 +100,6 @@ for name, loc in pairs(data.raw["planet"] or {}) do
 	add_node(name, loc)
 end
 
--- log all the nodes:
-for _, node in ipairs(nodes) do
-	log(
-		string.format(
-			"Node: %s, Real X: %.2f, Real Y: %.2f, Virtual X: %.2f, Virtual Y: %.2f",
-			node.name,
-			node.real_x,
-			node.real_y,
-			node.virtual_x,
-			node.virtual_y
-		)
-	)
-end
-
 local function relative_angle_degrees(a, b)
 	a = (a * 180 / math.pi) % 360
 	b = (b * 180 / math.pi) % 360
