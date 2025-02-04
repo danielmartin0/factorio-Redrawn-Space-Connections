@@ -48,15 +48,16 @@ local function connection_length(from_name, to_name)
 
 	local curved_distance = straight_distance * curvature_factor
 
+	local multiplier = 1
+
 	if from_planet.redrawn_connections_length_multiplier then
-		curved_distance = curved_distance * from_planet.redrawn_connections_length_multiplier
+		multiplier = math.max(multiplier, from_planet.redrawn_connections_length_multiplier)
 	end
-
 	if to_planet.redrawn_connections_length_multiplier then
-		curved_distance = curved_distance * to_planet.redrawn_connections_length_multiplier
+		multiplier = math.max(multiplier, to_planet.redrawn_connections_length_multiplier)
 	end
 
-	return curved_distance * SCALE_FACTOR
+	return curved_distance * SCALE_FACTOR * multiplier
 end
 
 local function connection_length_snapped(from_name, to_name)
