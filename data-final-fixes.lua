@@ -2,23 +2,6 @@ local asteroid_util = require("__space-age__.prototypes.planet.asteroid-spawn-de
 
 local saved_asteroid_definitions = {}
 
-local fixed_edges = {}
-if data.raw["space-connection"] then
-	for name, connection in pairs(data.raw["space-connection"]) do
-		local from_loc = data.raw["planet"][connection.from] or data.raw["space-location"][connection.from]
-		local to_loc = data.raw["planet"][connection.to] or data.raw["space-location"][connection.to]
-
-		if from_loc and to_loc and (from_loc.redrawn_connections_exclude or to_loc.redrawn_connections_exclude) then
-			fixed_edges[connection.from .. "-" .. connection.to] = connection
-		else
-			saved_asteroid_definitions[connection.from .. "-" .. connection.to] = connection.asteroid_spawn_definitions
-			data.raw["space-connection"][name] = nil
-		end
-	end
-end
-
-local nodes = {}
-
 local SCALE_FACTOR = 1250
 
 local function connection_length(from_name, to_name)
@@ -26,6 +9,7 @@ local function connection_length(from_name, to_name)
 	local to_planet = data.raw.planet[to_name] or data.raw["space-location"][to_name]
 
 	if not from_planet or not to_planet then
+		log(string.format("Redrawn Space Connections: Connection %s to %s has invalid planets", from_name, to_name))
 		return nil
 	end
 
@@ -60,14 +44,54 @@ local function connection_length(from_name, to_name)
 	return curved_distance * SCALE_FACTOR * multiplier
 end
 
-local function connection_length_snapped(from_name, to_name)
-	local distance = connection_length(from_name, to_name)
-
-	return math.ceil(distance / 1000) * 1000
+local function snap_length(length)
+	return math.ceil(length / 1000) * 1000
 end
 
+local fixed_edges = {}
+if data.raw["space-connection"] then
+	for name, connection in pairs(data.raw["space-connection"]) do
+		local from_loc = data.raw["planet"][connection.from] or data.raw["space-location"][connection.from]
+		local to_loc = data.raw["planet"][connection.to] or data.raw["space-location"][connection.to]
+
+		if from_loc and to_loc then
+			if
+				from_loc.redrawn_connections_keep
+				or to_loc.redrawn_connections_keep
+				or connection.redrawn_connections_keep
+			then
+				log(
+					string.format(
+						"Redrawn Space Connections: Existing connection %s to %s kept due to exclusion flags",
+						connection.from,
+						connection.to
+					)
+				)
+
+				if connection.redrawn_connections_rescale then
+					log(string.format("Redrawn Space Connections: Rescaling connection %s to %s", connection.from, connection.to))
+					connection.length = snap_length(connection_length(connection.from, connection.to))
+				end
+
+				connection.fixed = true
+
+				fixed_edges[connection.from .. "-" .. connection.to] = connection
+			else
+				saved_asteroid_definitions[connection.from .. "-" .. connection.to] =
+					connection.asteroid_spawn_definitions
+				data.raw["space-connection"][name] = nil
+			end
+		end
+	end
+end
+
+log("Fixed edges:")
+log(serpent.block(fixed_edges))
+
+local nodes = {}
+
 local function add_node(name, loc)
-	if loc.redrawn_connections_exclude or name == "space-location-unknown" then
+	if loc.redrawn_connections_keep or name == "space-location-unknown" then
 		return
 	end
 
@@ -205,8 +229,8 @@ local function calculate_triangulation(points)
 			else
 				edgeCount[key] = {
 					edge = {
-						a = a,
-						b = b,
+						from = a,
+						to = b,
 					},
 					count = 1,
 				}
@@ -237,8 +261,8 @@ local function calculate_triangulation(points)
 
 		for _, edge in ipairs(polygonEdges) do
 			table.insert(triangles, {
-				p1 = edge.a,
-				p2 = edge.b,
+				p1 = edge.from,
+				p2 = edge.to,
 				p3 = p,
 			})
 		end
@@ -265,8 +289,8 @@ for _, tri in ipairs(triangulation) do
 	local function addEdge(nameA, nameB)
 		local key = nameA < nameB and (nameA .. "|" .. nameB) or (nameB .. "|" .. nameA)
 		uniqueEdges[key] = {
-			a = nameA,
-			b = nameB,
+			from = nameA,
+			to = nameB,
 		}
 	end
 	addEdge(tri.p1.name, tri.p2.name)
@@ -278,6 +302,27 @@ local edges = {}
 for _, edge in pairs(uniqueEdges) do
 	table.insert(edges, edge)
 end
+
+log("Edges 0:")
+log(serpent.block(edges))
+
+for _, connection in pairs(fixed_edges) do
+	-- Remove any existing edges that match our fixed edge
+	for i = #edges, 1, -1 do
+		local edge = edges[i]
+		if
+			(edge.from == connection.from and edge.to == connection.to)
+			or (edge.from == connection.to and edge.to == connection.from)
+		then
+			table.remove(edges, i)
+		end
+	end
+
+	table.insert(edges, connection)
+end
+
+log("Edges 1:")
+log(serpent.block(edges))
 
 local nodes_by_name = {}
 for _, node in ipairs(nodes) do
@@ -307,22 +352,36 @@ for _, connection in pairs(fixed_edges) do
 	end
 end
 
+log("Edges 2:")
+log(serpent.block(edges))
+
 for _, edge in ipairs(edges) do
-	edge.length = connection_length(edge.a, edge.b)
+	if not edge.fixed then
+		log(string.format("Redrawn Space Connections: Setting length for %s to %s", edge.from, edge.to))
+		edge.length = connection_length(edge.from, edge.to)
+	end
 end
+
+log("Edges 3:")
+log(serpent.block(edges))
 
 table.sort(edges, function(a, b)
 	return a.length < b.length
 end)
 
--- Build graph first
 local graph = {}
 for _, edge in ipairs(edges) do
-	graph[edge.a] = graph[edge.a] or {}
-	graph[edge.b] = graph[edge.b] or {}
-	local snapped_length = connection_length_snapped(edge.a, edge.b)
-	table.insert(graph[edge.a], { neighbor = edge.b, weight = snapped_length })
-	table.insert(graph[edge.b], { neighbor = edge.a, weight = snapped_length })
+	graph[edge.from] = graph[edge.from] or {}
+	graph[edge.to] = graph[edge.to] or {}
+	local snapped_length = snap_length(edge.length)
+	table.insert(graph[edge.from], {
+		neighbor = edge.to,
+		weight = snapped_length,
+	})
+	table.insert(graph[edge.to], {
+		neighbor = edge.from,
+		weight = snapped_length,
+	})
 end
 
 local function find_shortest_path(source, target, exclude_edge)
@@ -348,8 +407,8 @@ local function find_shortest_path(source, target, exclude_edge)
 
 		for _, edge in ipairs(graph[current]) do
 			if
-				not (current == exclude_edge.a and edge.neighbor == exclude_edge.b)
-				and not (current == exclude_edge.b and edge.neighbor == exclude_edge.a)
+				not (current == exclude_edge.from and edge.neighbor == exclude_edge.to)
+				and not (current == exclude_edge.to and edge.neighbor == exclude_edge.from)
 			then
 				local newDist = distances[current] + edge.weight
 				if newDist < distances[edge.neighbor] then
@@ -366,31 +425,31 @@ local triangle_filtered_edges = {}
 local TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER = 1
 
 for _, edge in ipairs(edges) do
-	local direct_length = connection_length_snapped(edge.a, edge.b)
-	local alternative_length = find_shortest_path(edge.a, edge.b, edge)
-
-	if alternative_length > direct_length * TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER then
+	if edge.fixed then
 		table.insert(triangle_filtered_edges, edge)
 	else
-		log(
-			string.format(
-				"Redrawn Space Connections: Connection %s to %s filtered out by triangle inequality. Direct length: %d, Alternative path length: %d",
-				edge.a,
-				edge.b,
-				direct_length,
-				alternative_length
+		local direct_length = edge.length
+		local alternative_length = find_shortest_path(edge.from, edge.to, edge)
+
+		if alternative_length > direct_length * TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER then
+			table.insert(triangle_filtered_edges, edge)
+		else
+			log(
+				string.format(
+					"Redrawn Space Connections: Connection %s to %s filtered out by triangle inequality. Direct length: %d, Alternative path length: %d",
+					edge.from,
+					edge.to,
+					direct_length,
+					alternative_length
+				)
 			)
-		)
+		end
 	end
 end
 
 edges = triangle_filtered_edges
 
 local angleFilteredEdges = {}
-
-for _, edge in ipairs(edges) do
-	edge.length = connection_length(edge.a, edge.b)
-end
 
 table.sort(edges, function(a, b)
 	return a.length < b.length
@@ -400,8 +459,13 @@ local REAL_ANGLE_CONFLICT_DEGREES = 5
 local VIRTUAL_ANGLE_CONFLICT_DEGREES = 10
 
 for _, edge in ipairs(edges) do
-	local nodeA = nodes_by_name[edge.a]
-	local nodeB = nodes_by_name[edge.b]
+	if edge.fixed then
+		table.insert(angleFilteredEdges, edge)
+		goto continue_edge
+	end
+
+	local nodeA = nodes_by_name[edge.from]
+	local nodeB = nodes_by_name[edge.to]
 	if not nodeA or not nodeB then
 		goto continue_edge
 	end
@@ -485,8 +549,8 @@ for _, edge in ipairs(edges) do
 		log(
 			string.format(
 				"Redrawn Space Connections: Connection %s to %s filtered out due to %s",
-				edge.a,
-				edge.b,
+				edge.from,
+				edge.to,
 				conflict_reason
 			)
 		)
@@ -531,9 +595,16 @@ end
 
 local connections_to_add = {}
 
+local new_edges = {}
 for _, edge in ipairs(edges) do
-	local from = edge.a
-	local to = edge.b
+	if not edge.fixed then
+		table.insert(new_edges, edge)
+	end
+end
+
+for _, edge in ipairs(new_edges) do
+	local from = edge.from
+	local to = edge.to
 
 	local definitions, should_flip = get_asteroid_definitions(from, to)
 
@@ -551,7 +622,7 @@ for _, edge in ipairs(edges) do
 		from = from,
 		to = to,
 		order = from .. "-" .. to,
-		length = connection_length_snapped(from, to),
+		length = snap_length(edge.length),
 		asteroid_spawn_definitions = definitions,
 	}
 

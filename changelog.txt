@@ -1,7 +1,11 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.1.8
+Version: 1.2.0
 Date: ????
   Changes:
+    - Fixed redrawn_connections_exclude not working on space connections.
+    - Fixed possibility of duplicate edges to 'redrawn_connections_exclude' locations.
+    - Added API redrawn_connections_rescale
+    - Renamed redrawn_connections_exclude to redrawn_connections_keep
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.7
 Date: 2025-02-07
