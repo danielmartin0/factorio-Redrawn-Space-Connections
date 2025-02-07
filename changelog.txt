@@ -2,6 +2,7 @@
 Version: 1.1.6
 Date: ????
   Changes:
+    - Removed undocumented and nonfunctional API.
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.5
 Date: 2025-02-04
