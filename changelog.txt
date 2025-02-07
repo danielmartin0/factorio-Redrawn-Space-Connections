@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.2.0
-Date: ????
+Date: 2025-02-07
   Changes:
     - Fixed redrawn_connections_exclude not working on space connections.
     - Fixed possibility of duplicate edges to 'redrawn_connections_exclude' locations.
