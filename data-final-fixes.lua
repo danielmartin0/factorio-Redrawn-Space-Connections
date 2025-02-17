@@ -1,8 +1,8 @@
+local Delaunay = require("delaunay")
 local asteroid_util = require("__space-age__.prototypes.planet.asteroid-spawn-definitions")
 
-local saved_asteroid_definitions = {}
-
 local SCALE_FACTOR = 1250
+local REAL_SPACE = settings.startup["redrawn-space-connections-real-space-triangulation"].value
 
 local function connection_length(from_name, to_name)
 	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]
@@ -44,51 +44,64 @@ local function connection_length(from_name, to_name)
 	return curved_distance * SCALE_FACTOR * multiplier
 end
 
-local function snap_length(length)
+local function snapped_length(length)
 	return math.ceil(length / 1000) * 1000
 end
 
 local fixed_edges = {}
-if data.raw["space-connection"] then
-	for name, connection in pairs(data.raw["space-connection"]) do
-		local from_loc = data.raw["planet"][connection.from] or data.raw["space-location"][connection.from]
-		local to_loc = data.raw["planet"][connection.to] or data.raw["space-location"][connection.to]
+local saved_asteroid_definitions = {}
 
-		if from_loc and to_loc then
-			if
-				from_loc.redrawn_connections_keep
-				or to_loc.redrawn_connections_keep
-				or connection.redrawn_connections_keep
-			then
+for name, connection in pairs(data.raw["space-connection"]) do
+	local from_loc = data.raw["planet"][connection.from] or data.raw["space-location"][connection.from]
+	local to_loc = data.raw["planet"][connection.to] or data.raw["space-location"][connection.to]
+
+	if from_loc and to_loc then
+		if
+			from_loc.redrawn_connections_keep
+			or to_loc.redrawn_connections_keep
+			or connection.redrawn_connections_keep
+		then
+			log(
+				string.format(
+					"Redrawn Space Connections: Existing connection %s to %s kept due to exclusion flags",
+					connection.from,
+					connection.to
+				)
+			)
+
+			if connection.redrawn_connections_rescale then
 				log(
 					string.format(
-						"Redrawn Space Connections: Existing connection %s to %s kept due to exclusion flags",
+						"Redrawn Space Connections: Rescaling connection %s to %s",
 						connection.from,
 						connection.to
 					)
 				)
-
-				if connection.redrawn_connections_rescale then
-					log(string.format("Redrawn Space Connections: Rescaling connection %s to %s", connection.from, connection.to))
-					connection.length = snap_length(connection_length(connection.from, connection.to))
-				end
-
-				connection.fixed = true
-
-				fixed_edges[connection.from .. "-" .. connection.to] = connection
-			else
-				saved_asteroid_definitions[connection.from .. "-" .. connection.to] =
-					connection.asteroid_spawn_definitions
-				data.raw["space-connection"][name] = nil
+				connection.length = snapped_length(connection_length(connection.from, connection.to))
 			end
+
+			connection.fixed = true
+
+			fixed_edges[connection.from .. "-" .. connection.to] = connection
+		else
+			saved_asteroid_definitions[connection.from .. "-" .. connection.to] = connection.asteroid_spawn_definitions
+			data.raw["space-connection"][name] = nil
 		end
 	end
 end
 
-log("Fixed edges:")
-log(serpent.block(fixed_edges))
-
 local nodes = {}
+local nodes_by_name = {}
+
+local function calculate_virtual_coordinates(distance, orientation)
+	local polar_x = distance
+	local polar_y = orientation * 2 * math.pi
+
+	local virtual_x = polar_x
+	local virtual_y = polar_y * 20
+
+	return virtual_x, virtual_y
+end
 
 local function add_node(name, loc)
 	if loc.redrawn_connections_keep or name == "space-location-unknown" then
@@ -96,215 +109,105 @@ local function add_node(name, loc)
 	end
 
 	local angle = loc.orientation * 2 * math.pi
-
 	local x = loc.distance * math.sin(angle)
 	local y = -loc.distance * math.cos(angle)
-
 	local polar_x = loc.distance
 	local polar_y = angle
 
-	local virtual_x = polar_x
-	local virtual_y = polar_y * 20
+	local virtual_x, virtual_y = calculate_virtual_coordinates(loc.distance, loc.orientation)
 
-	table.insert(nodes, {
+	local node = {
 		name = name,
 		real_x = x,
 		real_y = y,
 		polar_x = polar_x,
 		polar_y = polar_y,
-		virtual_x = virtual_x,
-		virtual_y = virtual_y,
-	})
-end
-
-for name, loc in pairs(data.raw["space-location"] or {}) do
-	add_node(name, loc)
-end
-
-for name, loc in pairs(data.raw["planet"] or {}) do
-	add_node(name, loc)
-end
-
-local function relative_angle_degrees(a, b)
-	a = (a * 180 / math.pi) % 360
-	b = (b * 180 / math.pi) % 360
-
-	local diff = math.abs(a - b)
-	if diff > 180 then
-		diff = 360 - diff
-	end
-	return diff
-end
-
-local function point_in_circumcircle(p, tri)
-	local ax = tri.p1.virtual_x
-	local ay = tri.p1.virtual_y
-	local bx = tri.p2.virtual_x
-	local by = tri.p2.virtual_y
-	local cx = tri.p3.virtual_x
-	local cy = tri.p3.virtual_y
-
-	local d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
-	if d == 0 then
-		return false
-	end
-
-	local ax2 = ax * ax + ay * ay
-	local bx2 = bx * bx + by * by
-	local cx2 = cx * cx + cy * cy
-
-	local center_x = (ax2 * (by - cy) + bx2 * (cy - ay) + cx2 * (ay - by)) / d
-	local center_y = (ax2 * (cx - bx) + bx2 * (ax - cx) + cx2 * (bx - ax)) / d
-
-	local dx = p.virtual_x - center_x
-	local dy = p.virtual_y - center_y
-	local dist2 = dx * dx + dy * dy
-
-	local ra = ax - center_x
-	local rb = ay - center_y
-	local radius2 = ra * ra + rb * rb
-
-	return dist2 <= radius2
-end
-
-local function calculate_triangulation(points)
-	local min_x, max_x = math.huge, -math.huge
-	local min_y, max_y = math.huge, -math.huge
-	for _, p in ipairs(points) do
-		if p.virtual_x < min_x then
-			min_x = p.virtual_x
-		end
-		if p.virtual_x > max_x then
-			max_x = p.virtual_x
-		end
-		if p.virtual_y < min_y then
-			min_y = p.virtual_y
-		end
-		if p.virtual_y > max_y then
-			max_y = p.virtual_y
-		end
-	end
-	local dx = max_x - min_x
-	local dy = max_y - min_y
-	local dmax = math.max(dx, dy)
-	local mid_x = (min_x + max_x) / 2
-	local mid_y = (min_y + max_y) / 2
-
-	local st_p1 = {
-		name = "dt_super_1",
-		virtual_x = mid_x - 2 * dmax,
-		virtual_y = mid_y - dmax,
-	}
-	local st_p2 = {
-		name = "dt_super_2",
-		virtual_x = mid_x,
-		virtual_y = mid_y + 2 * dmax,
-	}
-	local st_p3 = {
-		name = "dt_super_3",
-		virtual_x = mid_x + 2 * dmax,
-		virtual_y = mid_y - dmax,
 	}
 
-	local triangles = {}
-	table.insert(triangles, {
-		p1 = st_p1,
-		p2 = st_p2,
-		p3 = st_p3,
-	})
-
-	for _, p in ipairs(points) do
-		local badTriangles = {}
-		for _, tri in ipairs(triangles) do
-			if point_in_circumcircle(p, tri) then
-				table.insert(badTriangles, tri)
-			end
-		end
-
-		local edgeCount = {}
-		local function addEdge(a, b)
-			local key = a.name < b.name and (a.name .. "|" .. b.name) or (b.name .. "|" .. a.name)
-			if edgeCount[key] then
-				edgeCount[key].count = edgeCount[key].count + 1
-			else
-				edgeCount[key] = {
-					edge = {
-						from = a,
-						to = b,
-					},
-					count = 1,
-				}
-			end
-		end
-
-		for _, tri in ipairs(badTriangles) do
-			addEdge(tri.p1, tri.p2)
-			addEdge(tri.p2, tri.p3)
-			addEdge(tri.p3, tri.p1)
-		end
-
-		local polygonEdges = {}
-		for _, info in pairs(edgeCount) do
-			if info.count == 1 then
-				table.insert(polygonEdges, info.edge)
-			end
-		end
-
-		for i = #triangles, 1, -1 do
-			for _, bt in ipairs(badTriangles) do
-				if triangles[i] == bt then
-					table.remove(triangles, i)
-					break
-				end
-			end
-		end
-
-		for _, edge in ipairs(polygonEdges) do
-			table.insert(triangles, {
-				p1 = edge.from,
-				p2 = edge.to,
-				p3 = p,
-			})
-		end
+	if REAL_SPACE then
+		node.virtual_x = x
+		node.virtual_y = y
+	else
+		node.virtual_x = virtual_x
+		node.virtual_y = virtual_y
 	end
 
-	local finalTriangles = {}
-	for _, tri in ipairs(triangles) do
-		if
-			tri.p1.name:sub(1, 8) ~= "dt_super"
-			and tri.p2.name:sub(1, 8) ~= "dt_super"
-			and tri.p3.name:sub(1, 8) ~= "dt_super"
-		then
-			table.insert(finalTriangles, tri)
-		end
-	end
-
-	return finalTriangles
+	table.insert(nodes, node)
+	nodes_by_name[name] = node
 end
 
-local triangulation = calculate_triangulation(nodes)
+for _, type in pairs({ "space-location", "planet" }) do
+	for name, loc in pairs(data.raw[type] or {}) do
+		add_node(name, loc)
+	end
+end
 
-local uniqueEdges = {}
-for _, tri in ipairs(triangulation) do
-	local function addEdge(nameA, nameB)
-		local key = nameA < nameB and (nameA .. "|" .. nameB) or (nameB .. "|" .. nameA)
-		uniqueEdges[key] = {
-			from = nameA,
-			to = nameB,
+local triangulation_points = {}
+local points_to_names = {}
+
+for _, node in ipairs(nodes) do
+	local vertex = Delaunay.vertex(node.virtual_x, node.virtual_y)
+	local key = string.format("%.10f,%.10f", node.virtual_x, node.virtual_y)
+	points_to_names[key] = node.name
+	table.insert(triangulation_points, vertex)
+end
+
+local constraint_lines = {}
+for _, connection in pairs(fixed_edges) do
+	local from_node = nodes_by_name[connection.from]
+	local to_node = nodes_by_name[connection.to]
+	if from_node and to_node then
+		local line = {
+			Delaunay.vertex(from_node.virtual_x, from_node.virtual_y),
+			Delaunay.vertex(to_node.virtual_x, to_node.virtual_y),
 		}
+		table.insert(constraint_lines, line)
 	end
-	addEdge(tri.p1.name, tri.p2.name)
-	addEdge(tri.p2.name, tri.p3.name)
-	addEdge(tri.p3.name, tri.p1.name)
+end
+
+local triangulation
+if #constraint_lines > 0 then
+	triangulation = Delaunay.constrainedTriangulation(triangulation_points, constraint_lines)
+else
+	triangulation = Delaunay.triangulate(triangulation_points)
+end
+
+for _, tri in ipairs(triangulation) do
+	local function get_name(vertex)
+		local key = string.format("%.10f,%.10f", vertex.position[1], vertex.position[2])
+		return points_to_names[key]
+	end
+
+	tri.p1 = tri.v1
+	tri.p2 = tri.v2
+	tri.p3 = tri.v3
+
+	tri.p1.name = get_name(tri.v1)
+	tri.p2.name = get_name(tri.v2)
+	tri.p3.name = get_name(tri.v3)
 end
 
 local edges = {}
-for _, edge in pairs(uniqueEdges) do
-	table.insert(edges, edge)
+
+local function ensure_edge(nameA, nameB)
+	for _, edge in ipairs(edges) do
+		if (edge.from == nameA and edge.to == nameB) or (edge.from == nameB and edge.to == nameA) then
+			return
+		end
+	end
+
+	table.insert(edges, {
+		from = nameA,
+		to = nameB,
+		length = connection_length(nameA, nameB),
+	})
 end
 
-log("Edges 0:")
-log(serpent.block(edges))
+for _, tri in ipairs(triangulation) do
+	ensure_edge(tri.p1.name, tri.p2.name)
+	ensure_edge(tri.p2.name, tri.p3.name)
+	ensure_edge(tri.p3.name, tri.p1.name)
+end
 
 for _, connection in pairs(fixed_edges) do
 	-- Remove any existing edges that match our fixed edge
@@ -319,14 +222,6 @@ for _, connection in pairs(fixed_edges) do
 	end
 
 	table.insert(edges, connection)
-end
-
-log("Edges 1:")
-log(serpent.block(edges))
-
-local nodes_by_name = {}
-for _, node in ipairs(nodes) do
-	nodes_by_name[node.name] = node
 end
 
 local acceptedAngles = {}
@@ -352,18 +247,11 @@ for _, connection in pairs(fixed_edges) do
 	end
 end
 
-log("Edges 2:")
-log(serpent.block(edges))
-
 for _, edge in ipairs(edges) do
 	if not edge.fixed then
-		log(string.format("Redrawn Space Connections: Setting length for %s to %s", edge.from, edge.to))
 		edge.length = connection_length(edge.from, edge.to)
 	end
 end
-
-log("Edges 3:")
-log(serpent.block(edges))
 
 table.sort(edges, function(a, b)
 	return a.length < b.length
@@ -373,14 +261,14 @@ local graph = {}
 for _, edge in ipairs(edges) do
 	graph[edge.from] = graph[edge.from] or {}
 	graph[edge.to] = graph[edge.to] or {}
-	local snapped_length = snap_length(edge.length)
+	local length = snapped_length(edge.length)
 	table.insert(graph[edge.from], {
 		neighbor = edge.to,
-		weight = snapped_length,
+		weight = length,
 	})
 	table.insert(graph[edge.to], {
 		neighbor = edge.from,
-		weight = snapped_length,
+		weight = length,
 	})
 end
 
@@ -455,8 +343,19 @@ table.sort(edges, function(a, b)
 	return a.length < b.length
 end)
 
-local REAL_ANGLE_CONFLICT_DEGREES = 5
-local VIRTUAL_ANGLE_CONFLICT_DEGREES = 10
+local function relative_angle_degrees(a, b)
+	a = (a * 180 / math.pi) % 360
+	b = (b * 180 / math.pi) % 360
+
+	local diff = math.abs(a - b)
+	if diff > 180 then
+		diff = 360 - diff
+	end
+	return diff
+end
+
+local REAL_ANGLE_CONFLICT_DEGREES = REAL_SPACE and 5 or 5
+local VIRTUAL_ANGLE_CONFLICT_DEGREES = REAL_SPACE and 0 or 10
 
 for _, edge in ipairs(edges) do
 	if edge.fixed then
@@ -622,7 +521,7 @@ for _, edge in ipairs(new_edges) do
 		from = from,
 		to = to,
 		order = from .. "-" .. to,
-		length = snap_length(edge.length),
+		length = snapped_length(edge.length),
 		asteroid_spawn_definitions = definitions,
 	}
 
@@ -653,4 +552,34 @@ for _, edge in ipairs(new_edges) do
 	table.insert(connections_to_add, connection)
 end
 
-data:extend(connections_to_add)
+if #connections_to_add > 0 then
+	data:extend(connections_to_add)
+end
+
+-- DEBUG:
+-- local function to_polar(x, y)
+-- 	local distance = math.sqrt(x * x + y * y)
+-- 	local orientation = math.atan2(y, x) / (2 * math.pi)
+-- 	if orientation < 0 then
+-- 		orientation = orientation + 1
+-- 	end
+-- 	return distance, orientation
+-- end
+-- for _, prototype_type in pairs({ "space-location", "planet" }) do
+-- 	for _, prototype in pairs(data.raw[prototype_type] or {}) do
+-- 		local virtual_x, virtual_y = calculate_virtual_coordinates(prototype.distance, prototype.orientation)
+
+-- 		local new_distance, new_orientation = to_polar(virtual_x, virtual_y)
+
+-- 		prototype.distance = new_distance
+-- 		prototype.orientation = new_orientation
+-- 	end
+-- end
+-- data.raw["utility-sprites"]["default"].starmap_star = {
+-- 	type = "sprite",
+-- 	filename = "__core__/graphics/icons/starmap-star.png",
+-- 	priority = "extra-high-no-scale",
+-- 	size = 512,
+-- 	flags = { "gui-icon" },
+-- 	scale = 0.5,
+-- }
