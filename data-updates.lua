@@ -26,7 +26,6 @@ if data.raw["space-location"]["solar-system-edge"] then
 end
 
 -- == Maraxsis ==--
-
 if data.raw.planet["maraxsis-trench"] then
 	data.raw.planet["maraxsis-trench"].redrawn_connections_keep = true
 end
