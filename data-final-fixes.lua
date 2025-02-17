@@ -2,7 +2,7 @@ local Delaunay = require("delaunay")
 local asteroid_util = require("__space-age__.prototypes.planet.asteroid-spawn-definitions")
 
 local SCALE_FACTOR = 1250
-local REAL_SPACE = settings.startup["redrawn-space-connections-real-space-triangulation"].value
+local REAL_SPACE = settings.startup["Redrawn-Space-Connections-real-space-triangulation"].value
 
 local function connection_length(from_name, to_name)
 	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]
