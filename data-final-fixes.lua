@@ -14,7 +14,10 @@ local function connection_length(from_name, to_name)
 		return nil
 	end
 
-	if from_planet.orientation == to_planet.orientation and from_planet.distance == to_planet.distance then
+	if
+		from_planet.distance == to_planet.distance
+		and (from_planet.orientation == to_planet.orientation or from_planet.distance == 0)
+	then
 		return 1 -- because 0 breaks the game
 	end
 
