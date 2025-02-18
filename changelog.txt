@@ -2,6 +2,7 @@
 Version: 1.3.2
 Date: ????
   Changes:
+    - Reverted the use of a Delaunay triangulation library.
 ---------------------------------------------------------------------------------------------------
 Version: 1.3.1
 Date: 2025-02-17

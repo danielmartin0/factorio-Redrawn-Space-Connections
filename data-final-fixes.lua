@@ -3,6 +3,7 @@ local asteroid_util = require("__space-age__.prototypes.planet.asteroid-spawn-de
 local saved_asteroid_definitions = {}
 
 local SCALE_FACTOR = 1250
+local REAL_SPACE = settings.startup["Redrawn-Space-Connections-real-space-triangulation"].value
 
 local function connection_length(from_name, to_name)
 	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]
@@ -69,7 +70,13 @@ if data.raw["space-connection"] then
 				)
 
 				if connection.redrawn_connections_rescale then
-					log(string.format("Redrawn Space Connections: Rescaling connection %s to %s", connection.from, connection.to))
+					log(
+						string.format(
+							"Redrawn Space Connections: Rescaling connection %s to %s",
+							connection.from,
+							connection.to
+						)
+					)
 					connection.length = snap_length(connection_length(connection.from, connection.to))
 				end
 
@@ -106,15 +113,23 @@ local function add_node(name, loc)
 	local virtual_x = polar_x
 	local virtual_y = polar_y * 20
 
-	table.insert(nodes, {
+	local node = {
 		name = name,
 		real_x = x,
 		real_y = y,
 		polar_x = polar_x,
 		polar_y = polar_y,
-		virtual_x = virtual_x,
-		virtual_y = virtual_y,
-	})
+	}
+
+	if REAL_SPACE then
+		node.virtual_x = x
+		node.virtual_y = y
+	else
+		node.virtual_x = virtual_x
+		node.virtual_y = virtual_y
+	end
+
+	table.insert(nodes, node)
 end
 
 for name, loc in pairs(data.raw["space-location"] or {}) do
@@ -455,8 +470,8 @@ table.sort(edges, function(a, b)
 	return a.length < b.length
 end)
 
-local REAL_ANGLE_CONFLICT_DEGREES = 5
-local VIRTUAL_ANGLE_CONFLICT_DEGREES = 10
+local REAL_ANGLE_CONFLICT_DEGREES = REAL_SPACE and 5 or 5
+local VIRTUAL_ANGLE_CONFLICT_DEGREES = REAL_SPACE and 0 or 10
 
 for _, edge in ipairs(edges) do
 	if edge.fixed then
