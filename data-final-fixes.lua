@@ -2,7 +2,7 @@ local asteroid_util = require("__space-age__.prototypes.planet.asteroid-spawn-de
 
 local saved_asteroid_definitions = {}
 
-local SCALE_FACTOR = 1250
+local SCALE_FACTOR = 1250 -- Matches the scale in Cosmic-Social-Distancing
 local REAL_SPACE = settings.startup["Redrawn-Space-Connections-real-space-triangulation"].value
 
 local function connection_length(from_name, to_name)
@@ -95,8 +95,8 @@ if data.raw["space-connection"] then
 	end
 end
 
-log("Fixed edges:")
-log(serpent.block(fixed_edges))
+-- log("Fixed edges:")
+-- log(serpent.block(fixed_edges))
 
 local nodes = {}
 
@@ -321,8 +321,8 @@ for _, edge in pairs(uniqueEdges) do
 	table.insert(edges, edge)
 end
 
-log("Edges 0:")
-log(serpent.block(edges))
+-- log("Edges 0:")
+-- log(serpent.block(edges))
 
 for _, connection in pairs(fixed_edges) do
 	-- Remove any existing edges that match our fixed edge
@@ -339,8 +339,8 @@ for _, connection in pairs(fixed_edges) do
 	table.insert(edges, connection)
 end
 
-log("Edges 1:")
-log(serpent.block(edges))
+-- log("Edges 1:")
+-- log(serpent.block(edges))
 
 local nodes_by_name = {}
 for _, node in ipairs(nodes) do
@@ -370,8 +370,8 @@ for _, connection in pairs(fixed_edges) do
 	end
 end
 
-log("Edges 2:")
-log(serpent.block(edges))
+-- log("Edges 2:")
+-- log(serpent.block(edges))
 
 for _, edge in ipairs(edges) do
 	if not edge.fixed then
@@ -380,8 +380,8 @@ for _, edge in ipairs(edges) do
 	end
 end
 
-log("Edges 3:")
-log(serpent.block(edges))
+-- log("Edges 3:")
+-- log(serpent.block(edges))
 
 table.sort(edges, function(a, b)
 	return a.length < b.length
