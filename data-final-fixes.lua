@@ -14,6 +14,8 @@ local function connection_length(from_name, to_name)
 		return nil
 	end
 
+	-- Factorio currently uses linear paths in polar co-ordinates.
+
 	if
 		from_planet.distance == to_planet.distance
 		and (from_planet.orientation == to_planet.orientation or from_planet.distance == 0)
@@ -21,20 +23,36 @@ local function connection_length(from_name, to_name)
 		return 1 -- because 0 breaks the game
 	end
 
-	local angle1 = from_planet.orientation * 2 * math.pi
-	local angle2 = to_planet.orientation * 2 * math.pi
-
+	local angle1 = (from_planet.orientation % 1) * 2 * math.pi
+	local angle2 = (to_planet.orientation % 1) * 2 * math.pi
 	local r1 = from_planet.distance or 0
 	local r2 = to_planet.distance or 0
-
 	local angle_diff = math.abs(angle2 - angle1)
 
-	local straight_distance = math.sqrt(r1 * r1 + r2 * r2 - 2 * r1 * r2 * math.cos(angle_diff))
+	if r1 > r2 then
+		r1, r2 = r2, r1
+		angle1, angle2 = angle2, angle1
+	end
 
-	-- local curvature_factor = 1.0 + (math.pi / 2 - 1.0) * (angle_diff / math.pi)
-	local curvature_factor = 1.0 + (math.pi / 2 - 1.0) * (angle_diff / math.pi) / 2 -- This factor is less strictly accurate, but it respects 'triangle inequalities' better
+	local path_length
 
-	local curved_distance = straight_distance * curvature_factor
+	if angle_diff < 1e-6 then
+		path_length = math.abs(r2 - r1)
+	elseif math.abs(r2 - r1) < 1e-6 then
+		path_length = r1 * angle_diff
+	else
+		local b = math.abs((angle2 - angle1) / (r2 - r1))
+
+		if math.abs(b) < 1e-6 then
+			path_length = math.sqrt((r2 - r1) * (r2 - r1) + (r1 * angle_diff) * (r1 * angle_diff))
+		else
+			local term1 = b * (-r1 * math.sqrt(1 + b * b * r1 * r1) + r2 * math.sqrt(1 + b * b * r2 * r2))
+			local term2 = math.log(-b * r1 + math.sqrt(1 + b * b * r1 * r1))
+			local term3 = -math.log(-b * r2 + math.sqrt(1 + b * b * r2 * r2))
+
+			path_length = (term1 + term2 + term3) / (2 * b)
+		end
+	end
 
 	local multiplier = 1
 
@@ -45,7 +63,7 @@ local function connection_length(from_name, to_name)
 		multiplier = math.max(multiplier, to_planet.redrawn_connections_length_multiplier)
 	end
 
-	return curved_distance * SCALE_FACTOR * multiplier
+	return path_length * SCALE_FACTOR * multiplier
 end
 
 local function snap_length(length)
@@ -100,21 +118,28 @@ end
 
 local nodes = {}
 
+local function calculate_virtual_coordinates(distance, orientation)
+	local polar_x = distance
+	local polar_y = orientation * 2 * math.pi
+
+	local virtual_x = polar_x
+	local virtual_y = polar_y * 20
+
+	return virtual_x, virtual_y
+end
+
 local function add_node(name, loc)
 	if loc.redrawn_connections_keep or name == "space-location-unknown" then
 		return
 	end
 
 	local angle = loc.orientation * 2 * math.pi
-
 	local x = loc.distance * math.sin(angle)
 	local y = -loc.distance * math.cos(angle)
-
 	local polar_x = loc.distance
 	local polar_y = angle
 
-	local virtual_x = polar_x
-	local virtual_y = polar_y * 20
+	local virtual_x, virtual_y = calculate_virtual_coordinates(loc.distance, loc.orientation)
 
 	local node = {
 		name = name,
@@ -467,123 +492,127 @@ end
 
 edges = triangle_filtered_edges
 
-local angleFilteredEdges = {}
+-- local angleFilteredEdges = {}
 
-table.sort(edges, function(a, b)
-	return a.length < b.length
-end)
+-- table.sort(edges, function(a, b)
+-- 	return a.length < b.length
+-- end)
 
-local REAL_ANGLE_CONFLICT_DEGREES = REAL_SPACE and 5 or 5
-local VIRTUAL_ANGLE_CONFLICT_DEGREES = REAL_SPACE and 0 or 10
+-- local REAL_ANGLE_CONFLICT_DEGREES = REAL_SPACE and 5 or 5
+-- local VIRTUAL_ANGLE_CONFLICT_DEGREES = REAL_SPACE and 0 or 10
 
-for _, edge in ipairs(edges) do
-	if edge.fixed then
-		table.insert(angleFilteredEdges, edge)
-		goto continue_edge
-	end
+-- for _, edge in ipairs(edges) do
+-- 	if edge.fixed then
+-- 		table.insert(angleFilteredEdges, edge)
+-- 		goto continue_edge
+-- 	end
 
-	local nodeA = nodes_by_name[edge.from]
-	local nodeB = nodes_by_name[edge.to]
-	if not nodeA or not nodeB then
-		goto continue_edge
-	end
+-- 	local nodeA = nodes_by_name[edge.from]
+-- 	local nodeB = nodes_by_name[edge.to]
+-- 	if not nodeA or not nodeB then
+-- 		goto continue_edge
+-- 	end
 
-	local virtualAngleA = math.atan2(nodeB.virtual_y - nodeA.virtual_y, nodeB.virtual_x - nodeA.virtual_x)
-	local virtualAngleB = math.atan2(nodeA.virtual_y - nodeB.virtual_y, nodeA.virtual_x - nodeB.virtual_x)
+-- 	local virtualAngleA = math.atan2(nodeB.virtual_y - nodeA.virtual_y, nodeB.virtual_x - nodeA.virtual_x)
+-- 	local virtualAngleB = math.atan2(nodeA.virtual_y - nodeB.virtual_y, nodeA.virtual_x - nodeB.virtual_x)
 
-	local realAngleA = math.atan2(nodeB.real_y - nodeA.real_y, nodeB.real_x - nodeA.real_x)
-	local realAngleB = math.atan2(nodeA.real_y - nodeB.real_y, nodeA.real_x - nodeB.real_x)
+-- 	local realAngleA = math.atan2(nodeB.real_y - nodeA.real_y, nodeB.real_x - nodeA.real_x)
+-- 	local realAngleB = math.atan2(nodeA.real_y - nodeB.real_y, nodeA.real_x - nodeB.real_x)
 
-	local conflict = false
-	local conflict_reason = ""
+-- 	local conflict = false
+-- 	local conflict_reason = ""
 
-	-- Check virtual angles at A
-	for _, existingAngle in ipairs(acceptedAngles[nodeA.name].virtual) do
-		local angle_diff = relative_angle_degrees(existingAngle, virtualAngleA)
-		if angle_diff < VIRTUAL_ANGLE_CONFLICT_DEGREES then
-			conflict = true
-			conflict_reason = string.format(
-				"Virtual angle A conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
-				virtualAngleA * 180 / math.pi,
-				existingAngle * 180 / math.pi,
-				angle_diff
-			)
-			break
-		end
-	end
+-- 	-- Check virtual angles at A
+-- 	for _, existingAngle in ipairs(acceptedAngles[nodeA.name].virtual) do
+-- 		local angle_diff = relative_angle_degrees(existingAngle, virtualAngleA)
+-- 		if angle_diff < VIRTUAL_ANGLE_CONFLICT_DEGREES then
+-- 			conflict = true
+-- 			conflict_reason = string.format(
+-- 				"Virtual angle A conflict: %.2f° vs existing %.2f° (diff: %.2f°) [length: %.2f]",
+-- 				virtualAngleA * 180 / math.pi,
+-- 				existingAngle * 180 / math.pi,
+-- 				angle_diff,
+-- 				edge.length
+-- 			)
+-- 			break
+-- 		end
+-- 	end
 
-	-- Check real angles at A
-	if not conflict then
-		for _, existingAngle in ipairs(acceptedAngles[nodeA.name].real) do
-			local angle_diff = relative_angle_degrees(existingAngle, realAngleA)
-			if angle_diff < REAL_ANGLE_CONFLICT_DEGREES then
-				conflict = true
-				conflict_reason = string.format(
-					"Real angle A conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
-					realAngleA * 180 / math.pi,
-					existingAngle * 180 / math.pi,
-					angle_diff
-				)
-				break
-			end
-		end
-	end
+-- 	-- Check real angles at A
+-- 	if not conflict then
+-- 		for _, existingAngle in ipairs(acceptedAngles[nodeA.name].real) do
+-- 			local angle_diff = relative_angle_degrees(existingAngle, realAngleA)
+-- 			if angle_diff < REAL_ANGLE_CONFLICT_DEGREES then
+-- 				conflict = true
+-- 				conflict_reason = string.format(
+-- 					"Real angle A conflict: %.2f° vs existing %.2f° (diff: %.2f°) [length: %.2f]",
+-- 					realAngleA * 180 / math.pi,
+-- 					existingAngle * 180 / math.pi,
+-- 					angle_diff,
+-- 					edge.length
+-- 				)
+-- 				break
+-- 			end
+-- 		end
+-- 	end
 
-	-- Check virtual angles at B
-	if not conflict then
-		for _, existingAngle in ipairs(acceptedAngles[nodeB.name].virtual) do
-			local angle_diff = relative_angle_degrees(existingAngle, virtualAngleB)
-			if angle_diff < VIRTUAL_ANGLE_CONFLICT_DEGREES then
-				conflict = true
-				conflict_reason = string.format(
-					"Virtual angle B conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
-					virtualAngleB * 180 / math.pi,
-					existingAngle * 180 / math.pi,
-					angle_diff
-				)
-				break
-			end
-		end
-	end
+-- 	-- Check virtual angles at B
+-- 	if not conflict then
+-- 		for _, existingAngle in ipairs(acceptedAngles[nodeB.name].virtual) do
+-- 			local angle_diff = relative_angle_degrees(existingAngle, virtualAngleB)
+-- 			if angle_diff < VIRTUAL_ANGLE_CONFLICT_DEGREES then
+-- 				conflict = true
+-- 				conflict_reason = string.format(
+-- 					"Virtual angle B conflict: %.2f° vs existing %.2f° (diff: %.2f°) [length: %.2f]",
+-- 					virtualAngleB * 180 / math.pi,
+-- 					existingAngle * 180 / math.pi,
+-- 					angle_diff,
+-- 					edge.length
+-- 				)
+-- 				break
+-- 			end
+-- 		end
+-- 	end
 
-	-- Check real angles at B
-	if not conflict then
-		for _, existingAngle in ipairs(acceptedAngles[nodeB.name].real) do
-			local angle_diff = relative_angle_degrees(existingAngle, realAngleB)
-			if angle_diff < REAL_ANGLE_CONFLICT_DEGREES then
-				conflict = true
-				conflict_reason = string.format(
-					"Real angle B conflict: %.2f° vs existing %.2f° (diff: %.2f°)",
-					realAngleB * 180 / math.pi,
-					existingAngle * 180 / math.pi,
-					angle_diff
-				)
-				break
-			end
-		end
-	end
+-- 	-- Check real angles at B
+-- 	if not conflict then
+-- 		for _, existingAngle in ipairs(acceptedAngles[nodeB.name].real) do
+-- 			local angle_diff = relative_angle_degrees(existingAngle, realAngleB)
+-- 			if angle_diff < REAL_ANGLE_CONFLICT_DEGREES then
+-- 				conflict = true
+-- 				conflict_reason = string.format(
+-- 					"Real angle B conflict: %.2f° vs existing %.2f° (diff: %.2f°) [length: %.2f]",
+-- 					realAngleB * 180 / math.pi,
+-- 					existingAngle * 180 / math.pi,
+-- 					angle_diff,
+-- 					edge.length
+-- 				)
+-- 				break
+-- 			end
+-- 		end
+-- 	end
 
-	if conflict then
-		log(
-			string.format(
-				"Redrawn Space Connections: Connection %s to %s filtered out due to %s",
-				edge.from,
-				edge.to,
-				conflict_reason
-			)
-		)
-	else
-		table.insert(angleFilteredEdges, edge)
-		table.insert(acceptedAngles[nodeA.name].virtual, virtualAngleA)
-		table.insert(acceptedAngles[nodeA.name].real, realAngleA)
-		table.insert(acceptedAngles[nodeB.name].virtual, virtualAngleB)
-		table.insert(acceptedAngles[nodeB.name].real, realAngleB)
-	end
+-- 	if conflict then
+-- 		log(
+-- 			string.format(
+-- 				"Redrawn Space Connections: Connection %s to %s filtered out due to %s",
+-- 				edge.from,
+-- 				edge.to,
+-- 				conflict_reason
+-- 			)
+-- 		)
+-- 	else
+-- 		table.insert(angleFilteredEdges, edge)
+-- 		table.insert(acceptedAngles[nodeA.name].virtual, virtualAngleA)
+-- 		table.insert(acceptedAngles[nodeA.name].real, realAngleA)
+-- 		table.insert(acceptedAngles[nodeB.name].virtual, virtualAngleB)
+-- 		table.insert(acceptedAngles[nodeB.name].real, realAngleB)
+-- 	end
 
-	::continue_edge::
-end
+-- 	::continue_edge::
+-- end
 
-edges = angleFilteredEdges
+-- edges = angleFilteredEdges
 
 local function get_asteroid_definitions(from, to)
 	if saved_asteroid_definitions[from .. "-" .. to] then
@@ -598,9 +627,9 @@ local function get_asteroid_definitions(from, to)
 		return asteroid_util.spawn_definitions(asteroid_util.aquilo_solar_system_edge), true
 	elseif from == "solar-system-edge" then
 		return asteroid_util.spawn_definitions(asteroid_util.aquilo_solar_system_edge), false
-	elseif to == "aquilo" then
+	elseif to == "aquilo" or to == "maraxsis" then
 		return asteroid_util.spawn_definitions(asteroid_util.gleba_aquilo), true
-	elseif from == "aquilo" then
+	elseif from == "aquilo" or from == "maraxsis" then
 		return asteroid_util.spawn_definitions(asteroid_util.gleba_aquilo), false
 	elseif from == "nauvis" then
 		return asteroid_util.spawn_definitions(asteroid_util.nauvis_fulgora), false
@@ -672,3 +701,37 @@ for _, edge in ipairs(new_edges) do
 end
 
 data:extend(connections_to_add)
+
+--== DEBUG ==--
+
+-- for _, connection in pairs(data.raw["space-connection"] or {}) do
+-- 	-- Un-snap lengths
+-- 	connection.length = connection_length(connection.from, connection.to)
+-- end
+
+-- local function to_polar(x, y)
+-- 	local distance = math.sqrt(x * x + y * y)
+-- 	local orientation = math.atan2(y, x) / (2 * math.pi)
+-- 	if orientation < 0 then
+-- 		orientation = orientation + 1
+-- 	end
+-- 	return distance, orientation
+-- end
+-- for _, prototype_type in pairs({ "space-location", "planet" }) do
+-- 	for _, prototype in pairs(data.raw[prototype_type] or {}) do
+-- 		local virtual_x, virtual_y = calculate_virtual_coordinates(prototype.distance, prototype.orientation)
+
+-- 		local new_distance, new_orientation = to_polar(virtual_x, virtual_y)
+
+-- 		prototype.distance = new_distance
+-- 		prototype.orientation = new_orientation
+-- 	end
+-- end
+-- data.raw["utility-sprites"]["default"].starmap_star = {
+-- 	type = "sprite",
+-- 	filename = "__core__/graphics/icons/starmap-star.png",
+-- 	priority = "extra-high-no-scale",
+-- 	size = 512,
+-- 	flags = { "gui-icon" },
+-- 	scale = 0.5,
+-- }
