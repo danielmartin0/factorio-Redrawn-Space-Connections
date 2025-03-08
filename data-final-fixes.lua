@@ -1,8 +1,6 @@
 local asteroid_util = require("__space-age__.prototypes.planet.asteroid-spawn-definitions")
 
 local saved_asteroid_definitions = {}
-data.raw.planet.nauvis.hidden = true
-data.raw.planet.nauvis.map_gen_settings = nil
 
 local SCALE_FACTOR = 1250 -- Matches the scale in Cosmic-Social-Distancing
 local REAL_SPACE = settings.startup["Redrawn-Space-Connections-real-space-triangulation"].value

@@ -2,6 +2,7 @@
 Version: 1.3.5
 Date: ????
   Changes:
+    - Fixed leaving in some test code which caused Nauvis to vanish!
 ---------------------------------------------------------------------------------------------------
 Version: 1.3.4
 Date: 2025-03-08
