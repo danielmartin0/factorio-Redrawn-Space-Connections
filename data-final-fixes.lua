@@ -1,6 +1,8 @@
 local asteroid_util = require("__space-age__.prototypes.planet.asteroid-spawn-definitions")
 
 local saved_asteroid_definitions = {}
+data.raw.planet.nauvis.hidden = true
+data.raw.planet.nauvis.map_gen_settings = nil
 
 local SCALE_FACTOR = 1250 -- Matches the scale in Cosmic-Social-Distancing
 local REAL_SPACE = settings.startup["Redrawn-Space-Connections-real-space-triangulation"].value
@@ -129,7 +131,7 @@ local function calculate_virtual_coordinates(distance, orientation)
 end
 
 local function add_node(name, loc)
-	if loc.redrawn_connections_keep or name == "space-location-unknown" then
+	if loc.redrawn_connections_keep or name == "space-location-unknown" or loc.hidden then
 		return
 	end
 

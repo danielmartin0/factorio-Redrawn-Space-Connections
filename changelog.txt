@@ -2,6 +2,7 @@
 Version: 1.3.4
 Date: ????
   Changes:
+    - Hidden space locations are now excluded from the triangulation.
 ---------------------------------------------------------------------------------------------------
 Version: 1.3.3
 Date: 2025-02-25
