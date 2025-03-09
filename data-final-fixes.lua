@@ -78,7 +78,9 @@ if data.raw["space-connection"] then
 
 		if from_loc and to_loc then
 			if
-				from_loc.redrawn_connections_keep
+				from_loc.redrawn_connections_exclude
+				or to_loc.redrawn_connections_exclude
+				or from_loc.redrawn_connections_keep
 				or to_loc.redrawn_connections_keep
 				or connection.redrawn_connections_keep
 			then
@@ -129,7 +131,12 @@ local function calculate_virtual_coordinates(distance, orientation)
 end
 
 local function add_node(name, loc)
-	if loc.redrawn_connections_keep or name == "space-location-unknown" or loc.hidden then
+	if
+		loc.redrawn_connections_exclude
+		or loc.redrawn_connections_keep
+		or name == "space-location-unknown"
+		or loc.hidden
+	then
 		return
 	end
 

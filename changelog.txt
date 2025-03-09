@@ -2,6 +2,7 @@
 Version: 1.3.6
 Date: ????
   Changes:
+    - Renamed the API 'redrawn_connections_keep' on space locations to 'redrawn_connections_exclude'. Using 'redrawn_connections_keep' will still work but is undocumented.
 ---------------------------------------------------------------------------------------------------
 Version: 1.3.5
 Date: 2025-03-08
