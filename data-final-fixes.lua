@@ -63,7 +63,7 @@ local function connection_length(from_name, to_name)
 		multiplier = math.max(multiplier, to_planet.redrawn_connections_length_multiplier)
 	end
 
-	return path_length * SCALE_FACTOR * multiplier
+	return path_length * SCALE_FACTOR * multiplier * settings.startup["Redrawn-Space-Connections-route-length-multiplier"].value
 end
 
 local function snap_length(length)
