@@ -29,9 +29,12 @@ local function connection_length(from_name, to_name)
 	local r2 = to_planet.distance or 0
 	local angle_diff = math.abs(angle2 - angle1)
 
+	if angle_diff > math.pi then
+		angle_diff = 2 * math.pi - angle_diff
+	end
+
 	if r1 > r2 then
 		r1, r2 = r2, r1
-		angle1, angle2 = angle2, angle1
 	end
 
 	local path_length
@@ -41,7 +44,7 @@ local function connection_length(from_name, to_name)
 	elseif math.abs(r2 - r1) < 1e-6 then
 		path_length = r1 * angle_diff
 	else
-		local b = math.abs((angle2 - angle1) / (r2 - r1))
+		local b = math.abs(angle_diff / (r2 - r1))
 
 		if math.abs(b) < 1e-6 then
 			path_length = math.sqrt((r2 - r1) * (r2 - r1) + (r1 * angle_diff) * (r1 * angle_diff))
