@@ -63,7 +63,10 @@ local function connection_length(from_name, to_name)
 		multiplier = math.max(multiplier, to_planet.redrawn_connections_length_multiplier)
 	end
 
-	return path_length * SCALE_FACTOR * multiplier * settings.startup["Redrawn-Space-Connections-route-length-multiplier"].value
+	return path_length
+		* SCALE_FACTOR
+		* multiplier
+		* settings.startup["Redrawn-Space-Connections-route-length-multiplier"].value
 end
 
 local function snap_length(length)
@@ -621,6 +624,103 @@ edges = triangle_filtered_edges
 
 -- edges = angleFilteredEdges
 
+local function interpolated_asteroid_definition(a, b)
+	if not a then
+		return {
+			asteroid = b.asteroid,
+			spawn_points = {
+				{
+					angle_when_stopped = b.angle_when_stopped,
+					speed = b.speed,
+					probability = 0,
+					distance = 0.1,
+				},
+				{
+					angle_when_stopped = b.angle_when_stopped,
+					speed = b.speed,
+					probability = b.probability,
+					distance = 0.9,
+				},
+			},
+		}
+	elseif not b then
+		return {
+			asteroid = a.asteroid,
+			spawn_points = {
+				{
+					angle_when_stopped = a.angle_when_stopped,
+					speed = a.speed,
+					probability = a.probability,
+					distance = 0.1,
+				},
+				{
+					angle_when_stopped = a.angle_when_stopped,
+					speed = a.speed,
+					probability = 0,
+					distance = 0.9,
+				},
+			},
+		}
+	end
+
+	return {
+		asteroid = a.asteroid or b.asteroid,
+		spawn_points = {
+			{
+				angle_when_stopped = a.angle_when_stopped,
+				speed = a.speed,
+				probability = a.probability,
+				distance = 0.1,
+			},
+			{
+				angle_when_stopped = a.angle_when_stopped,
+				speed = a.speed,
+				probability = a.probability + b.probability, -- Smaller than some vanilla bump curves, larger than some vanilla flat curves
+				distance = 0.5,
+			},
+			{
+				angle_when_stopped = b.angle_when_stopped,
+				speed = b.speed,
+				probability = b.probability,
+				distance = 0.9,
+			},
+		},
+		type = a.type or b.type,
+	}
+end
+
+local function interpolated_asteroid_definitions(a, b)
+	local asteroid_names = {}
+
+	local a_as_table = {}
+	for i = 1, #a do
+		local asteroid_name = a[i].asteroid
+		a_as_table[asteroid_name] = a[i]
+
+		if not asteroid_names[asteroid_name] then
+			asteroid_names[asteroid_name] = true
+		end
+	end
+
+	local b_as_table = {}
+	for i = 1, #b do
+		local asteroid_name = b[i].asteroid
+		b_as_table[asteroid_name] = b[i]
+
+		if not asteroid_names[asteroid_name] then
+			asteroid_names[asteroid_name] = true
+		end
+	end
+
+	local avg = {}
+
+	for k, _ in pairs(asteroid_names) do
+		table.insert(avg, interpolated_asteroid_definition(a_as_table[k], b_as_table[k]))
+	end
+
+	return avg
+end
+
 local function get_asteroid_definitions(from, to)
 	if saved_asteroid_definitions[from .. "-" .. to] then
 		return saved_asteroid_definitions[from .. "-" .. to]
@@ -638,10 +738,27 @@ local function get_asteroid_definitions(from, to)
 		return asteroid_util.spawn_definitions(asteroid_util.gleba_aquilo), true
 	elseif from == "aquilo" or from == "maraxsis" then
 		return asteroid_util.spawn_definitions(asteroid_util.gleba_aquilo), false
-	elseif from == "nauvis" then
+	end
+	if from == "nauvis" then
 		return asteroid_util.spawn_definitions(asteroid_util.nauvis_fulgora), false
 	elseif to == "nauvis" then
 		return asteroid_util.spawn_definitions(asteroid_util.nauvis_fulgora), true
+	end
+
+	if
+		data.raw["planet"][from]
+		and data.raw["planet"][from].asteroid_spawn_definitions
+		and data.raw["planet"][to]
+		and data.raw["planet"][to].asteroid_spawn_definitions
+	then
+		log("Redrawn Space Connections: Interpolating asteroids from " .. from .. " to " .. to)
+		local out = interpolated_asteroid_definitions(
+			data.raw["planet"][from].asteroid_spawn_definitions,
+			data.raw["planet"][to].asteroid_spawn_definitions
+		)
+		return out, false
+	else
+		log(string.format("Redrawn Space Connections: No spawn definitions found for %s to %s", from, to))
 	end
 
 	return asteroid_util.spawn_definitions(asteroid_util.gleba_fulgora), false

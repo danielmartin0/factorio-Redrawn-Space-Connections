@@ -11,6 +11,6 @@ data:extend({
 		type = "double-setting",
 		setting_type = "startup",
 		name = "Redrawn-Space-Connections-route-length-multiplier",
-		default_value = 1
+		default_value = 1,
 	},
 })

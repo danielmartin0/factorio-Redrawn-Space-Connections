@@ -1,7 +1,12 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.3.11
-Date: ????
+Date: 2025-4-15
   Changes:
+    - New setting to allow new space connections to use the average spawn density of the to and from destinations. 
+    - If false, new space connections will use gleba_fulgora Asteroids
+    - Added average_spawn_definition_array() and average_spawn_definition() in data-final-fixes
+    - Updated get_asteroid_definitions() to call average_spawn_definition_array() if Average-Planet-Asteroid-new-path is true
+    - Updated changelog in info.json
 ---------------------------------------------------------------------------------------------------
 Version: 1.3.10
 Date: 2025-03-22
