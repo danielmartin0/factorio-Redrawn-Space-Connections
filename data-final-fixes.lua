@@ -4,8 +4,6 @@ local saved_asteroid_definitions = {}
 
 local SCALE_FACTOR = 1250 -- Matches the scale in Cosmic-Social-Distancing
 local REAL_SPACE = settings.startup["Redrawn-Space-Connections-real-space-triangulation"].value
-log_once = true
---local cache = data.raw["space-connection"]["gleba-fulgora"]
 
 local function connection_length(from_name, to_name)
 	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]
@@ -65,7 +63,10 @@ local function connection_length(from_name, to_name)
 		multiplier = math.max(multiplier, to_planet.redrawn_connections_length_multiplier)
 	end
 
-	return path_length * SCALE_FACTOR * multiplier * settings.startup["Redrawn-Space-Connections-route-length-multiplier"].value
+	return path_length
+		* SCALE_FACTOR
+		* multiplier
+		* settings.startup["Redrawn-Space-Connections-route-length-multiplier"].value
 end
 
 local function snap_length(length)
@@ -623,63 +624,102 @@ edges = triangle_filtered_edges
 
 -- edges = angleFilteredEdges
 
+local function interpolated_asteroid_definition(a, b)
+	if not a then
+		return {
+			asteroid = b.asteroid,
+			spawn_points = {
+				{
+					angle_when_stopped = b.angle_when_stopped,
+					speed = b.speed,
+					probability = 0,
+					distance = 0.1,
+				},
+				{
+					angle_when_stopped = b.angle_when_stopped,
+					speed = b.speed,
+					probability = b.probability,
+					distance = 0.9,
+				},
+			},
+		}
+	elseif not b then
+		return {
+			asteroid = a.asteroid,
+			spawn_points = {
+				{
+					angle_when_stopped = a.angle_when_stopped,
+					speed = a.speed,
+					probability = a.probability,
+					distance = 0.1,
+				},
+				{
+					angle_when_stopped = a.angle_when_stopped,
+					speed = a.speed,
+					probability = 0,
+					distance = 0.9,
+				},
+			},
+		}
+	end
 
-
-local function average_spawn_definition(a,b)
-	return
-	{
+	return {
 		asteroid = a.asteroid or b.asteroid,
-		spawn_points =
-		{
+		spawn_points = {
 			{
-				angle_when_stopped = (a.angle_when_stopped/2 or 0) + (b.angle_when_stopped/2 or 0),
-				speed = (a.speed/2 or 0) + (b.speed/2 or 0),
-				probability = (a.probability/2 or 0) + (b.probability/2 or 0),
+				angle_when_stopped = a.angle_when_stopped,
+				speed = a.speed,
+				probability = a.probability,
 				distance = 0.1,
 			},
 			{
-				angle_when_stopped = (a.angle_when_stopped/2 or 0) + (b.angle_when_stopped/2 or 0),
-				speed = (a.speed/2 or 0) + (b.speed/2 or 0),
-				probability = (a.probability/2 or 0) + (b.probability/2 or 0),
+				angle_when_stopped = a.angle_when_stopped,
+				speed = a.speed,
+				probability = a.probability + b.probability, -- Smaller than some vanilla bump curves, larger than some vanilla flat curves
+				distance = 0.5,
+			},
+			{
+				angle_when_stopped = b.angle_when_stopped,
+				speed = b.speed,
+				probability = b.probability,
 				distance = 0.9,
-			}
+			},
 		},
 		type = a.type or b.type,
 	}
 end
 
---I don't like redundant code, but I'm willing to do redundant calculations if it makes the code base simplier.
---It is easier to treat this as a black box, and not worry about the slightly unoptimized array to table conversions.
---Forcing table conversions also allows us to manage cases where two array[SpaceLocationAsteroidSpawnDefinition] have different lengths, because one contains an exclusive asteroid.
-local function average_spawn_definition_array(a,b) 
-    a_as_table = {}
-    b_as_table = {}
-	c_as_array = {}
-	--Step 1 Convert these arrays to a table to make comparing easier.
-	for i=1,#a do 
-        local asteroid_name = a[i].asteroid
-        a_as_table[asteroid_name] = a[i]
-    end
+local function interpolated_asteroid_definitions(a, b)
+	local asteroid_names = {}
 
-    for i=1,#b do 
-        local asteroid_name = b[i].asteroid
-        b_as_table[asteroid_name] = b[i]
-    end
+	local a_as_table = {}
+	for i = 1, #a do
+		local asteroid_name = a[i].asteroid
+		a_as_table[asteroid_name] = a[i]
 
-	for k,v in pairs(a_as_table) do
-		table.insert(c_as_array,average_spawn_definition(a_as_table[k],b_as_table[k]) )
-	end
-
-	for k,v in pairs(b_as_table) do
-		if(a_as_table[k] == nil) then
-			table.insert(c_as_array,average_spawn_definition(v,v) )
+		if not asteroid_names[asteroid_name] then
+			asteroid_names[asteroid_name] = true
 		end
 	end
 
-    return c_as_array
+	local b_as_table = {}
+	for i = 1, #b do
+		local asteroid_name = b[i].asteroid
+		b_as_table[asteroid_name] = b[i]
+
+		if not asteroid_names[asteroid_name] then
+			asteroid_names[asteroid_name] = true
+		end
+	end
+
+	local avg = {}
+
+	for k, _ in pairs(asteroid_names) do
+		table.insert(avg, interpolated_asteroid_definition(a_as_table[k], b_as_table[k]))
+	end
+
+	return avg
 end
-
-
 
 local function get_asteroid_definitions(from, to)
 	if saved_asteroid_definitions[from .. "-" .. to] then
@@ -698,32 +738,27 @@ local function get_asteroid_definitions(from, to)
 		return asteroid_util.spawn_definitions(asteroid_util.gleba_aquilo), true
 	elseif from == "aquilo" or from == "maraxsis" then
 		return asteroid_util.spawn_definitions(asteroid_util.gleba_aquilo), false
-	elseif from == "nauvis" then
+	end
+	if from == "nauvis" then
 		return asteroid_util.spawn_definitions(asteroid_util.nauvis_fulgora), false
 	elseif to == "nauvis" then
 		return asteroid_util.spawn_definitions(asteroid_util.nauvis_fulgora), true
 	end
 
-	
-
-	if (settings.startup["Average-Planet-Asteroid-new-path"].value and data.raw['planet'][from] ~= nil and data.raw['planet'][to] ~= nil ) then
-
-		--log(serpent.block(data.raw['planet'][from].asteroid_spawn_definitions))
-		local out = average_spawn_definition_array(data.raw['planet'][from].asteroid_spawn_definitions,data.raw['planet'][to].asteroid_spawn_definitions)
-		if(log_once) then 
-			log_once = false
-			--log(serpent.block("----"))
-			--log(serpent.block(from))
-			--log(serpent.block(" spawn definitions"))
-			--log(serpent.block(data.raw['planet'][from].asteroid_spawn_definitions))
-			--log(serpent.block("----"))
-			--log(serpent.block("Correct spawn definitions"))
-			--log(serpent.block(cache.asteroid_spawn_definitions))
-			--log(serpent.block("----"))
-			--log(serpent.block("out"))
-			--log(serpent.block(out))
-		end
+	if
+		data.raw["planet"][from]
+		and data.raw["planet"][from].asteroid_spawn_definitions
+		and data.raw["planet"][to]
+		and data.raw["planet"][to].asteroid_spawn_definitions
+	then
+		log("Redrawn Space Connections: Interpolating asteroids from " .. from .. " to " .. to)
+		local out = interpolated_asteroid_definitions(
+			data.raw["planet"][from].asteroid_spawn_definitions,
+			data.raw["planet"][to].asteroid_spawn_definitions
+		)
 		return out, false
+	else
+		log(string.format("Redrawn Space Connections: No spawn definitions found for %s to %s", from, to))
 	end
 
 	return asteroid_util.spawn_definitions(asteroid_util.gleba_fulgora), false
