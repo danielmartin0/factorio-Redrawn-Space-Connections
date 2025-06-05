@@ -642,6 +642,7 @@ local function interpolated_asteroid_definition(a, b)
 					distance = 0.9,
 				},
 			},
+			type = b.type,
 		}
 	elseif not b then
 		return {
@@ -660,6 +661,7 @@ local function interpolated_asteroid_definition(a, b)
 					distance = 0.9,
 				},
 			},
+			type = a.type,
 		}
 	end
 
@@ -734,10 +736,6 @@ local function get_asteroid_definitions(from, to)
 		return asteroid_util.spawn_definitions(asteroid_util.aquilo_solar_system_edge), true
 	elseif from == "solar-system-edge" then
 		return asteroid_util.spawn_definitions(asteroid_util.aquilo_solar_system_edge), false
-	elseif to == "aquilo" or to == "maraxsis" then
-		return asteroid_util.spawn_definitions(asteroid_util.gleba_aquilo), true
-	elseif from == "aquilo" or from == "maraxsis" then
-		return asteroid_util.spawn_definitions(asteroid_util.gleba_aquilo), false
 	end
 
 	if
