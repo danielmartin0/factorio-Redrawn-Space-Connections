@@ -1,7 +1,10 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.4.5
+Version: 2.0.0
 Date: ????
   Changes:
+    - Switched from polar-space triangulation to real-space triangulation. Although this can cause a rare inaccuracy, it means paths will cross the north axis which is preferable. This is a potentially breaking change for saves in that a few space routes may adjust.
+  Bugfixes:
+    - Corrected the length formula for axis-crossing paths. (Thanks boomshroom!)
 ---------------------------------------------------------------------------------------------------
 Version: 1.4.4
 Date: 2025-06-05
