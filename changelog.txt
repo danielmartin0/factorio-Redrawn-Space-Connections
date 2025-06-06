@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.0.0
-Date: ????
+Date: 2025-06-06
   Changes:
     - Switched from polar-space triangulation to real-space triangulation. Although this can cause a rare inaccuracy, it means paths will cross the north axis which is preferable. This is a potentially breaking change for saves in that a few space routes may adjust.
   Bugfixes:
