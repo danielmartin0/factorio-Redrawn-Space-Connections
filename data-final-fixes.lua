@@ -741,18 +741,28 @@ local function get_asteroid_definitions(from, to)
 		return asteroid_util.spawn_definitions(asteroid_util.aquilo_solar_system_edge), false
 	end
 
-	if
-		data.raw["planet"][from]
-		and data.raw["planet"][from].asteroid_spawn_definitions
-		and data.raw["planet"][to]
-		and data.raw["planet"][to].asteroid_spawn_definitions
-	then
-		log("Redrawn Space Connections: Interpolating asteroids from " .. from .. " to " .. to)
-		local out = interpolated_asteroid_definitions(
-			data.raw["planet"][from].asteroid_spawn_definitions,
-			data.raw["planet"][to].asteroid_spawn_definitions
-		)
-		return out, false
+	local from_prototype = data.raw.planet[from] or data.raw["space-location"][from]
+	local to_prototype = data.raw.planet[to] or data.raw["space-location"][to]
+
+	-- local should_flip = from_prototype.tier and to_prototype.tier and from_prototype.tier > to_prototype.tier
+	local should_flip = false
+
+	if from_prototype.asteroid_spawn_definitions and to_prototype.asteroid_spawn_definitions then
+		if should_flip then
+			log("Redrawn Space Connections: Interpolating asteroids from " .. to .. " to " .. from)
+			local out = interpolated_asteroid_definitions(
+				to_prototype.asteroid_spawn_definitions,
+				from_prototype.asteroid_spawn_definitions
+			)
+			return out, true
+		else
+			log("Redrawn Space Connections: Interpolating asteroids from " .. from .. " to " .. to)
+			local out = interpolated_asteroid_definitions(
+				from_prototype.asteroid_spawn_definitions,
+				to_prototype.asteroid_spawn_definitions
+			)
+			return out, false
+		end
 	else
 		log(string.format("Redrawn Space Connections: No spawn definitions found for %s to %s", from, to))
 	end
