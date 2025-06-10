@@ -505,6 +505,8 @@ end
 
 edges = triangle_filtered_edges
 
+-- The following angle filtering code has been found to be redundant now that there is triangle inequality filtering.
+
 -- local angleFilteredEdges = {}
 
 -- table.sort(edges, function(a, b)
