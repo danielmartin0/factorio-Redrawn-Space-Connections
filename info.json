@@ -6,6 +6,6 @@
     "description": "Algorithmically redraws the routes on the space map to improve navigation between modded planets.",
     "contact": "Discord: thesixthroc",
     "factorio_version": "2.0",
-    "dependencies": ["base >= 2.0.0", "space-age >= 2.0.0", "PlanetsLib >= 1.2.16"],
+    "dependencies": ["base >= 2.0.0", "space-age >= 2.0.0", "PlanetsLib >= 1.6.0"],
     "space_travel_required": true
 }
