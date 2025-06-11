@@ -478,16 +478,29 @@ end
 
 local triangle_filtered_edges = {}
 
-local TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER = 1
+local TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER = 1.05
+
+table.sort(edges, function(a, b)
+	return a.length > b.length
+end)
 
 for _, edge in ipairs(edges) do
 	if edge.fixed then
 		table.insert(triangle_filtered_edges, edge)
 	else
-		local direct_length = edge.length
+		local direct_length = snap_length(edge.length)
 		local alternative_length = find_shortest_path(edge.from, edge.to, edge)
 
 		if alternative_length > direct_length * TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER then
+			log(
+				string.format(
+					"Redrawn Space Connections: Connection %s to %s does not violate triangle inequality. Direct length: %d, Alternative path length: %d",
+					edge.from,
+					edge.to,
+					direct_length,
+					alternative_length
+				)
+			)
 			table.insert(triangle_filtered_edges, edge)
 		else
 			log(
