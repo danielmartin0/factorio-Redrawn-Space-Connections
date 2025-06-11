@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.1.0
-Date: ????
+Date: 2025-06-11
   Changes:
     - Triangle inequality filtering is now more strict. Edges are removed post-generation if they reduce the shortest route between 'from' and 'to' by no more than 5%.
     - Fixed a rounding error in the triangle inequality filtering calculation.
