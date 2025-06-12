@@ -433,10 +433,12 @@ for _, edge in ipairs(edges) do
 	table.insert(graph[edge.from], {
 		neighbor = edge.to,
 		weight = snapped_length,
+		original_length = edge.length,
 	})
 	table.insert(graph[edge.to], {
 		neighbor = edge.from,
 		weight = snapped_length,
+		original_length = edge.length,
 	})
 end
 
@@ -466,7 +468,7 @@ local function find_shortest_path(source, target, exclude_edge)
 				not (current == exclude_edge.from and edge.neighbor == exclude_edge.to)
 				and not (current == exclude_edge.to and edge.neighbor == exclude_edge.from)
 			then
-				local newDist = distances[current] + edge.weight
+				local newDist = distances[current] + edge.original_length
 				if newDist < distances[edge.neighbor] then
 					distances[edge.neighbor] = newDist
 				end
@@ -478,7 +480,7 @@ end
 
 local triangle_filtered_edges = {}
 
-local TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER = 1.05
+local TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER = 1.00
 
 table.sort(edges, function(a, b)
 	return a.length > b.length
@@ -488,19 +490,9 @@ for _, edge in ipairs(edges) do
 	if edge.fixed then
 		table.insert(triangle_filtered_edges, edge)
 	else
-		local direct_length = snap_length(edge.length)
 		local alternative_length = find_shortest_path(edge.from, edge.to, edge)
 
-		if alternative_length > direct_length * TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER then
-			log(
-				string.format(
-					"Redrawn Space Connections: Connection %s to %s does not violate triangle inequality. Direct length: %d, Alternative path length: %d",
-					edge.from,
-					edge.to,
-					direct_length,
-					alternative_length
-				)
-			)
+		if alternative_length > edge.length * TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER then
 			table.insert(triangle_filtered_edges, edge)
 		else
 			log(
@@ -508,7 +500,7 @@ for _, edge in ipairs(edges) do
 					"Redrawn Space Connections: Connection %s to %s filtered out by triangle inequality. Direct length: %d, Alternative path length: %d",
 					edge.from,
 					edge.to,
-					direct_length,
+					edge.length,
 					alternative_length
 				)
 			)
