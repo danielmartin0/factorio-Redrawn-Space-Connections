@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.0
-Date: ????
+Date: 2025-06-12
   Changes:
     - Reverted the triangle inequality filtering threshold from 5% to 0% as this was found to remove too many space routes.
 ---------------------------------------------------------------------------------------------------
