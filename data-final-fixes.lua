@@ -413,7 +413,6 @@ end
 
 for _, edge in ipairs(edges) do
 	if not edge.fixed then
-		log(string.format("Redrawn Space Connections: Setting length for %s to %s", edge.from, edge.to))
 		edge.length = connection_length(edge.from, edge.to)
 	end
 end
@@ -707,20 +706,26 @@ local function interpolated_asteroid_definitions(a, b)
 	local a_as_table = {}
 	for i = 1, #a do
 		local asteroid_name = a[i].asteroid
-		a_as_table[asteroid_name] = a[i]
 
-		if not asteroid_names[asteroid_name] then
-			asteroid_names[asteroid_name] = true
+		if asteroid_name then -- TODO: Figure out why this check is needed? A game crashed because this was nil.
+			a_as_table[asteroid_name] = a[i]
+
+			if not asteroid_names[asteroid_name] then
+				asteroid_names[asteroid_name] = true
+			end
 		end
 	end
 
 	local b_as_table = {}
 	for i = 1, #b do
 		local asteroid_name = b[i].asteroid
-		b_as_table[asteroid_name] = b[i]
 
-		if not asteroid_names[asteroid_name] then
-			asteroid_names[asteroid_name] = true
+		if asteroid_name then -- TODO: Figure out why this check is needed? A game crashed because this was nil.
+			b_as_table[asteroid_name] = b[i]
+
+			if not asteroid_names[asteroid_name] then
+				asteroid_names[asteroid_name] = true
+			end
 		end
 	end
 
