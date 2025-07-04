@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.4
-Date: ????
+Date: 2025-07-04
   Changes:
     - Planets in orbit around hidden locations are no longer excluded from the algorithm, since they are generally otherwise inaccessible.
     - Routes from hidden planets are no longer preserved in the algorithm, these routes are now cleaned up.
