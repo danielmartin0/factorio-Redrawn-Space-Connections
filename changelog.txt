@@ -2,6 +2,9 @@
 Version: 2.2.4
 Date: ????
   Changes:
+    - Planets in orbit around hidden locations are no longer excluded from the algorithm, since they are generally otherwise inaccessible.
+    - Routes from hidden planets are no longer preserved in the algorithm, these routes are now cleaned up.
+    - The logic around hidden planets now runs in data-final-fixes.lua.
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.3
 Date: 2025-06-29

@@ -5,6 +5,33 @@ local saved_asteroid_definitions = {}
 local SCALE_FACTOR = 1250 -- Matches the scale in Cosmic-Social-Distancing
 local REAL_SPACE = settings.startup["Redrawn-Space-Connections-real-space-triangulation"].value
 
+--== Initial flags ==--
+
+for _, prototype in pairs({ "space-location", "planet" }) do
+	for _, loc in pairs(data.raw[prototype]) do
+		if
+			loc.subgroup
+			and loc.subgroup == "satellites"
+			and (
+				loc.orbit
+				and loc.orbit.parent
+				and data.raw[loc.orbit.parent.type][loc.orbit.parent.name]
+				and not data.raw[loc.orbit.parent.type][loc.orbit.parent.name].hidden
+			)
+		then
+			loc.redrawn_connections_exclude = true
+		end
+	end
+end
+
+for _, connection in pairs(data.raw["space-connection"]) do
+	if connection.hidden then
+		connection.redrawn_connections_keep = true
+	end
+end
+
+--== End initial flags ==--
+
 local function connection_length(from_name, to_name)
 	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]
 	local to_planet = data.raw.planet[to_name] or data.raw["space-location"][to_name]
