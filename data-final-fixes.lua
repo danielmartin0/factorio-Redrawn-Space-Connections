@@ -783,11 +783,10 @@ local function get_asteroid_definitions(from, to)
 	local from_prototype = data.raw.planet[from] or data.raw["space-location"][from]
 	local to_prototype = data.raw.planet[to] or data.raw["space-location"][to]
 
-	local from_is_planet = from_prototype.type == "planet"
-	local to_is_planet = to_prototype.type == "planet"
-
-	local from_tier = from_is_planet and PlanetsLib.get_planet_tier(from) or PlanetsLib.get_space_location_tier(from)
-	local to_tier = to_is_planet and PlanetsLib.get_planet_tier(to) or PlanetsLib.get_space_location_tier(to)
+	local from_tier = data.raw["mod-data"]["PlanetsLib-tierlist"].data[from_prototype.type][from]
+		or data.raw["mod-data"]["PlanetsLib-tierlist"].data.default
+	local to_tier = data.raw["mod-data"]["PlanetsLib-tierlist"].data[to_prototype.type][to]
+		or data.raw["mod-data"]["PlanetsLib-tierlist"].data.default
 
 	local should_flip = from_tier > to_tier
 
