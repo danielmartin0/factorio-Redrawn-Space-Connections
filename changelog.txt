@@ -2,6 +2,7 @@
 Version: 2.2.6
 Date: ????
   Changes:
+    - (No functionality change) Description update.
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.5
 Date: 2025-07-20
@@ -18,7 +19,7 @@ Date: 2025-07-04
 Version: 2.2.3
 Date: 2025-06-29
   Changes:
-    - Fixed the changelog.
+    - (No functionality change) Fixed the changelog.
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.2
 Date: 2025-06-29
