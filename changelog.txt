@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.2.7
-Date: ????
+Date: 2025-11-12
   Changes:
     - The redrawn_connections_length_multiplier API now applies its length scaling after the algorithm has finished constructing the space map. This means that locations with high values of this parameter, like the Shattered Planet, no longer have routes to it overenthusiastically deleted by triangle inequality filtering due to the presence of other close-by locations.
 ---------------------------------------------------------------------------------------------------
