@@ -9,9 +9,3 @@ end
 if data.raw["space-location"]["solar-system-edge"] then
 	data.raw["space-location"]["shattered-planet"].redrawn_connections_length_multiplier = 100 -- Has no effect in vanilla
 end
-
--- == Maraxsis ==--
-
-if data.raw.planet["maraxsis-trench"] then
-	data.raw.planet["maraxsis-trench"].redrawn_connections_exclude = true
-end
