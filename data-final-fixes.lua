@@ -84,6 +84,21 @@ local function connection_length(from_name, to_name)
 		end
 	end
 
+	return path_length * SCALE_FACTOR * settings.startup["Redrawn-Space-Connections-route-length-multiplier"].value
+end
+
+local function snap_length(length)
+	return math.ceil(length / 1000) * 1000
+end
+
+local function get_length_multiplier(from_name, to_name)
+	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]
+	local to_planet = data.raw.planet[to_name] or data.raw["space-location"][to_name]
+
+	if not from_planet or not to_planet then
+		return 1
+	end
+
 	local multiplier = 1
 
 	if from_planet.redrawn_connections_length_multiplier then
@@ -93,14 +108,7 @@ local function connection_length(from_name, to_name)
 		multiplier = math.max(multiplier, to_planet.redrawn_connections_length_multiplier)
 	end
 
-	return path_length
-		* SCALE_FACTOR
-		* multiplier
-		* settings.startup["Redrawn-Space-Connections-route-length-multiplier"].value
-end
-
-local function snap_length(length)
-	return math.ceil(length / 1000) * 1000
+	return multiplier
 end
 
 local fixed_edges = {}
@@ -133,7 +141,11 @@ if data.raw["space-connection"] then
 							connection.to
 						)
 					)
-					connection.length = snap_length(connection_length(connection.from, connection.to))
+
+					-- Apply redrawn_connections_length_multiplier to fixed edges
+					local base_length = connection_length(connection.from, connection.to)
+					local multiplier = get_length_multiplier(connection.from, connection.to)
+					connection.length = snap_length(base_length * multiplier)
 				end
 
 				connection.fixed = true
@@ -535,6 +547,14 @@ for _, edge in ipairs(edges) do
 end
 
 edges = triangle_filtered_edges
+
+-- Apply redrawn_connections_length_multiplier to non-fixed edges
+for _, edge in ipairs(edges) do
+	if not edge.fixed then
+		local multiplier = get_length_multiplier(edge.from, edge.to)
+		edge.length = edge.length * multiplier
+	end
+end
 
 -- The following angle filtering code has been found to be redundant now that there is triangle inequality filtering.
 
