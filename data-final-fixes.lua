@@ -141,11 +141,8 @@ if data.raw["space-connection"] then
 							connection.to
 						)
 					)
-
-					-- Apply redrawn_connections_length_multiplier to fixed edges
-					local base_length = connection_length(connection.from, connection.to)
-					local multiplier = get_length_multiplier(connection.from, connection.to)
-					connection.length = snap_length(base_length * multiplier)
+					-- Rescale will be applied after triangle inequality filtering
+					connection.length = connection_length(connection.from, connection.to)
 				end
 
 				connection.fixed = true
@@ -548,9 +545,14 @@ end
 
 edges = triangle_filtered_edges
 
--- Apply redrawn_connections_length_multiplier to non-fixed edges
+-- Apply redrawn_connections_length_multiplier after triangle inequality filtering
 for _, edge in ipairs(edges) do
-	if not edge.fixed then
+	if edge.fixed then
+		if edge.redrawn_connections_rescale then
+			local multiplier = get_length_multiplier(edge.from, edge.to)
+			edge.length = snap_length(edge.length * multiplier)
+		end
+	else
 		local multiplier = get_length_multiplier(edge.from, edge.to)
 		edge.length = edge.length * multiplier
 	end

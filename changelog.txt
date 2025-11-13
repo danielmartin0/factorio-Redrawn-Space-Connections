@@ -1,11 +1,12 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.3.1
 Date: ????
-  Changes:
+  Bugfixes:
+    - Corrected the handling of edges using the redrawn_connections_rescale API.
 ---------------------------------------------------------------------------------------------------
 Version: 2.3.0
 Date: 2025-11-13
-  Changes:
+  Bugfixes:
     - Implemented a corrected version of today's tweak, ensuring that fixed edges untouched by the algorithm have their length multipliers applied consistently.
   Info:
     - Correctly bumped the minor version number as this is a potentially destructive change.
