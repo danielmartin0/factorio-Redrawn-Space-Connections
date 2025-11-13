@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.3.0
-Date: ????
+Date: 2025-11-13
   Changes:
     - Implemented a corrected version of today's tweak, ensuring that fixed edges untouched by the algorithm have their length multipliers applied consistently.
   Info:
