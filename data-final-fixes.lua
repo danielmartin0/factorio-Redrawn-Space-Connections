@@ -84,7 +84,19 @@ local function connection_length(from_name, to_name)
 		end
 	end
 
-	return path_length * SCALE_FACTOR * settings.startup["Redrawn-Space-Connections-route-length-multiplier"].value
+	local multiplier = 1
+
+	if from_planet.redrawn_connections_length_multiplier then
+		multiplier = math.max(multiplier, from_planet.redrawn_connections_length_multiplier)
+	end
+	if to_planet.redrawn_connections_length_multiplier then
+		multiplier = math.max(multiplier, to_planet.redrawn_connections_length_multiplier)
+	end
+
+	return path_length
+		* SCALE_FACTOR
+		* multiplier
+		* settings.startup["Redrawn-Space-Connections-route-length-multiplier"].value
 end
 
 local function snap_length(length)
@@ -647,27 +659,6 @@ edges = triangle_filtered_edges
 -- end
 
 -- edges = angleFilteredEdges
-
--- We apply redrawn_connections_length_multiplier as late as this step (so that it doesn not affect triangle inequality filtering)
-for _, edge in ipairs(edges) do
-	local from_planet = data.raw.planet[edge.from] or data.raw["space-location"][edge.from]
-	local to_planet = data.raw.planet[edge.to] or data.raw["space-location"][edge.to]
-
-	if from_planet or to_planet then
-		local multiplier = 1
-
-		if from_planet and from_planet.redrawn_connections_length_multiplier then
-			multiplier = math.max(multiplier, from_planet.redrawn_connections_length_multiplier)
-		end
-		if to_planet and to_planet.redrawn_connections_length_multiplier then
-			multiplier = math.max(multiplier, to_planet.redrawn_connections_length_multiplier)
-		end
-
-		if multiplier ~= 1 then
-			edge.length = edge.length * multiplier
-		end
-	end
-end
 
 local function interpolated_asteroid_definition(a, b)
 	if not a then
