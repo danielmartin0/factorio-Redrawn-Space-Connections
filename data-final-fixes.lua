@@ -91,73 +91,6 @@ local function snap_length(length)
 	return math.ceil(length / 1000) * 1000
 end
 
--- Testing version: old connection_length that applies multiplier early (for comparison)
-local function connection_length_old_way(from_name, to_name)
-	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]
-	local to_planet = data.raw.planet[to_name] or data.raw["space-location"][to_name]
-
-	if not from_planet or not to_planet then
-		return nil
-	end
-
-	-- Factorio currently uses linear paths in polar co-ordinates.
-
-	if
-		from_planet.distance == to_planet.distance
-		and (from_planet.orientation == to_planet.orientation or from_planet.distance == 0)
-	then
-		return 1 -- because 0 breaks the game
-	end
-
-	local angle1 = (from_planet.orientation % 1) * 2 * math.pi
-	local angle2 = (to_planet.orientation % 1) * 2 * math.pi
-	local r1 = from_planet.distance or 0
-	local r2 = to_planet.distance or 0
-	local angle_diff = math.abs(angle2 - angle1)
-
-	if angle_diff > math.pi then
-		angle_diff = 2 * math.pi - angle_diff
-	end
-
-	if r1 > r2 then
-		r1, r2 = r2, r1
-	end
-
-	local path_length
-
-	if angle_diff < 1e-6 then
-		path_length = math.abs(r2 - r1)
-	elseif math.abs(r2 - r1) < 1e-6 then
-		path_length = r1 * angle_diff
-	else
-		local b = math.abs(angle_diff / (r2 - r1))
-
-		if math.abs(b) < 1e-6 then
-			path_length = math.sqrt((r2 - r1) * (r2 - r1) + (r1 * angle_diff) * (r1 * angle_diff))
-		else
-			local term1 = b * (-r1 * math.sqrt(1 + b * b * r1 * r1) + r2 * math.sqrt(1 + b * b * r2 * r2))
-			local term2 = math.log(-b * r1 + math.sqrt(1 + b * b * r1 * r1))
-			local term3 = -math.log(-b * r2 + math.sqrt(1 + b * b * r2 * r2))
-
-			path_length = (term1 + term2 + term3) / (2 * b)
-		end
-	end
-
-	local multiplier = 1
-
-	if from_planet.redrawn_connections_length_multiplier then
-		multiplier = math.max(multiplier, from_planet.redrawn_connections_length_multiplier)
-	end
-	if to_planet.redrawn_connections_length_multiplier then
-		multiplier = math.max(multiplier, to_planet.redrawn_connections_length_multiplier)
-	end
-
-	return path_length
-		* SCALE_FACTOR
-		* multiplier
-		* settings.startup["Redrawn-Space-Connections-route-length-multiplier"].value
-end
-
 local fixed_edges = {}
 if data.raw["space-connection"] then
 	for name, connection in pairs(data.raw["space-connection"]) do
@@ -721,50 +654,17 @@ for _, edge in ipairs(edges) do
 	local to_planet = data.raw.planet[edge.to] or data.raw["space-location"][edge.to]
 
 	if from_planet or to_planet then
-		local original_length = edge.length
 		local multiplier = 1
-		local from_multiplier = nil
-		local to_multiplier = nil
-
-		-- Calculate what the old way would have produced (for comparison)
-		local old_way_length = connection_length_old_way(edge.from, edge.to)
 
 		if from_planet and from_planet.redrawn_connections_length_multiplier then
-			from_multiplier = from_planet.redrawn_connections_length_multiplier
-			multiplier = math.max(multiplier, from_multiplier)
+			multiplier = math.max(multiplier, from_planet.redrawn_connections_length_multiplier)
 		end
 		if to_planet and to_planet.redrawn_connections_length_multiplier then
-			to_multiplier = to_planet.redrawn_connections_length_multiplier
-			multiplier = math.max(multiplier, to_multiplier)
+			multiplier = math.max(multiplier, to_planet.redrawn_connections_length_multiplier)
 		end
 
 		if multiplier ~= 1 then
 			edge.length = edge.length * multiplier
-			log(
-				string.format(
-					"Redrawn Space Connections: Applied length multiplier to connection %s -> %s: original_length=%d, from_multiplier=%s, to_multiplier=%s, final_multiplier=%.2f, final_length=%d, old_way_length=%d, difference=%d",
-					edge.from,
-					edge.to,
-					original_length,
-					from_multiplier and string.format("%.2f", from_multiplier) or "none",
-					to_multiplier and string.format("%.2f", to_multiplier) or "none",
-					multiplier,
-					edge.length,
-					old_way_length or -1,
-					old_way_length and (edge.length - old_way_length) or 0
-				)
-			)
-		else
-			log(
-				string.format(
-					"Redrawn Space Connections: Connection %s -> %s: length=%d, no multiplier applied, old_way_length=%d, difference=%d",
-					edge.from,
-					edge.to,
-					original_length,
-					old_way_length or -1,
-					old_way_length and (original_length - old_way_length) or 0
-				)
-			)
 		end
 	end
 end
