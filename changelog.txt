@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.3.2
-Date: ????
+Date: 2025-11-19
   Changes:
     - Added sensitivity to the new orbit.is_satellite field on planet prototypes. (No functionality change expected yet.)
 ---------------------------------------------------------------------------------------------------
