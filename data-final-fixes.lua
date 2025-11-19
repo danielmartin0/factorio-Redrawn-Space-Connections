@@ -10,8 +10,7 @@ local REAL_SPACE = settings.startup["Redrawn-Space-Connections-real-space-triang
 for _, prototype in pairs({ "space-location", "planet" }) do
 	for _, loc in pairs(data.raw[prototype]) do
 		if
-			loc.subgroup
-			and loc.subgroup == "satellites"
+			((loc.subgroup and loc.subgroup == "satellites") or (loc.orbit and loc.orbit.is_satellite))
 			and (
 				loc.orbit
 				and loc.orbit.parent
