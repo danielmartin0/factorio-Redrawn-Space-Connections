@@ -787,16 +787,19 @@ local function interpolated_asteroid_definitions(a, b)
 	return avg
 end
 
-local function distance_from_nauvis(prototype)
-	-- safety fallback in case planet nauvis doesn't exist
-	local nauvis = data.raw.planet.nauvis
-	local nauvis_distance = nauvis and nauvis.distance or 0
-	local nauvis_orientation = nauvis and nauvis.orientation or 0
+local function distance_from_origin(prototype)
+	-- safety fallback in case origin planet doesn't exist
+	local origin = data.raw.planet.nauvis
+	if mods["any-planet-start"] and settings.startup["aps-planet"].value ~= "none" then
+		origin = data.raw.planet[settings.startup["aps-planet"].value] or origin
+	end
+	local origin_distance = origin and origin.distance or 0
+	local origin_orientation = origin and origin.orientation or 0
 
 	-- thank you PlanetsLib, for this magic function
-	local nauvis_x, nauvis_y = orbits.get_rectangular_position_from_polar(
-		nauvis_distance,
-		nauvis_orientation
+	local origin_x, origin_y = orbits.get_rectangular_position_from_polar(
+		origin_distance,
+		origin_orientation
 	)
 
 	local prototype_x, prototype_y = orbits.get_rectangular_position_from_polar(
@@ -804,44 +807,31 @@ local function distance_from_nauvis(prototype)
 		prototype.orientation or 0
 	)
 	-- basic trigonometry for distance between two points
-	return math.sqrt((prototype_x - nauvis_x) ^ 2 + (prototype_y - nauvis_y) ^ 2)
+	return math.sqrt((prototype_x - origin_x) ^ 2 + (prototype_y - origin_y) ^ 2)
 end
 
 local function get_asteroid_definitions(from, to)
-	if saved_asteroid_definitions[from .. "-" .. to] then
-		return saved_asteroid_definitions[from .. "-" .. to]
-	end
-
-	if saved_asteroid_definitions[to .. "-" .. from] then
-		return saved_asteroid_definitions[to .. "-" .. from], true
-	end
-
-	-- with no other mods, this changes Fulgora-SSEdge to SSEdge-Fulgora, seesm unintentional
-	-- so this logic was rewrtitten and moved down to after the should_flip logic
-	--if to == "solar-system-edge" then
-	--	return asteroid_util.spawn_definitions(asteroid_util.aquilo_solar_system_edge), true
-	--elseif from == "solar-system-edge" then
-	--	return asteroid_util.spawn_definitions(asteroid_util.aquilo_solar_system_edge), false
-	--end
-
 	local from_prototype = data.raw.planet[from] or data.raw["space-location"][from]
 	local to_prototype = data.raw.planet[to] or data.raw["space-location"][to]
 
-	--local from_tier = data.raw["mod-data"]["PlanetsLib-tierlist"].data[from_prototype.type][from]
-	--	or data.raw["mod-data"]["PlanetsLib-tierlist"].data.default
-	--local to_tier = data.raw["mod-data"]["PlanetsLib-tierlist"].data[to_prototype.type][to]
-	--	or data.raw["mod-data"]["PlanetsLib-tierlist"].data.default
-	local from_distance = distance_from_nauvis(from_prototype)
-	local to_distance = distance_from_nauvis(to_prototype)
+	local from_distance = distance_from_origin(from_prototype)
+	local to_distance = distance_from_origin(to_prototype)
 
-	--local should_flip = from_tier > to_tier
 	local should_flip = from_distance > to_distance
+	
+	-- first decide if should_flip, then use the appropriate asteroid_spawn_definitions
+	if saved_asteroid_definitions[from .. "-" .. to] then
+		return saved_asteroid_definitions[from .. "-" .. to], should_flip
+	end
 
-	-- first decide if should_flip, then use the
+	if saved_asteroid_definitions[to .. "-" .. from] then
+		return saved_asteroid_definitions[to .. "-" .. from], should_flip
+	end
+
 	if from == "solar-system-edge" or to == "solar-system-edge" then
 		return asteroid_util.spawn_definitions(asteroid_util.aquilo_solar_system_edge), should_flip
 	end
-
+	
 	if from_prototype.asteroid_spawn_definitions and to_prototype.asteroid_spawn_definitions then
 		if should_flip then
 			log("Redrawn Space Connections: Interpolating asteroids from " .. to .. " to " .. from)
@@ -927,15 +917,15 @@ end
 
 data:extend(connections_to_add)
 
---== Set order on all space connections based on distance from Nauvis ==--
+--== Set order on all space connections based on distance from origin ==--
 
 for _, connection in pairs(data.raw["space-connection"] or {}) do
 	local from_prototype = data.raw.planet[connection.from] or data.raw["space-location"][connection.from]
 	local to_prototype = data.raw.planet[connection.to] or data.raw["space-location"][connection.to]
 
 	if from_prototype and to_prototype then
-		local from_distance = distance_from_nauvis(from_prototype)
-		local to_distance = distance_from_nauvis(to_prototype)
+		local from_distance = distance_from_origin(from_prototype)
+		local to_distance = distance_from_origin(to_prototype)
 
 		local lower_distance = math.min(from_distance, to_distance)
 		local higher_distance = math.max(from_distance, to_distance)
