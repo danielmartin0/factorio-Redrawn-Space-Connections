@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.4.1
-Date: 2026-6-8
+Date: 2026-06-08
   Changes:
     - Route directionality and sorting order now depends on distance from nauvis, deprecating PlanetsLib: Tiers. This does not affect which routes exist.
 ---------------------------------------------------------------------------------------------------
