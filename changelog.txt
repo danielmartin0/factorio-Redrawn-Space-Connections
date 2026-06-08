@@ -1,12 +1,15 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.4.2
 Date: ????
-  Changes:
+  Compatibility:
+    - Route orientation & ordering now has Any Planet Start compatibility. (Thanks Kryzeth!)
+  Locale:
+    - Added Polish locale (Thanks Hacai666!).
 ---------------------------------------------------------------------------------------------------
 Version: 2.4.1
 Date: 2026-06-08
   Changes:
-    - Route directionality and sorting order now depends on distance from nauvis, deprecating PlanetsLib: Tiers. This does not affect which routes exist.
+    - Route directionality and sorting order now depends on distance from nauvis, deprecating PlanetsLib: Tiers. This does not affect which routes exist. (Thanks Kryzeth!)
 ---------------------------------------------------------------------------------------------------
 Version: 2.4.0
 Date: 2025-12-26
