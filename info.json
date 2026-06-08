@@ -9,8 +9,7 @@
   "dependencies": [
     "base >= 2.0.0",
     "space-age >= 2.0.0",
-    "PlanetsLib >= 1.7.1",
-    "PlanetsLibTiers"
+    "PlanetsLib >= 1.7.1"
   ],
   "space_travel_required": true
 }

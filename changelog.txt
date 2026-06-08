@@ -1,7 +1,11 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.4.1
-Date: ????
+Date: 2026-6-8
   Changes:
+    - Updated route directionality and sorting order to rely on distance from nauvis, instead of PlanetsLib: Tiers.
+    - Removed special case handling for Solar System Edge, since it resulted in some unintended route directionality and sorting.
+  Info:
+    - Removed dependency on PlanetsLib: Tiers, as it was no longer needed.
 ---------------------------------------------------------------------------------------------------
 Version: 2.4.0
 Date: 2025-12-26
