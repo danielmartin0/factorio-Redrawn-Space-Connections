@@ -6,19 +6,13 @@ local saved_asteroid_definitions = {}
 local SCALE_FACTOR = 1250 -- Matches the scale in Cosmic-Social-Distancing
 local REAL_SPACE = settings.startup["Redrawn-Space-Connections-real-space-triangulation"].value
 
---== Initial flags ==--
+-- == Initial flags ==--
 
 for _, prototype in pairs({ "space-location", "planet" }) do
 	for _, loc in pairs(data.raw[prototype]) do
-		if
-			((loc.subgroup and loc.subgroup == "satellites") or (loc.orbit and loc.orbit.is_satellite))
-			and (
-				loc.orbit
-				and loc.orbit.parent
-				and data.raw[loc.orbit.parent.type][loc.orbit.parent.name]
-				and not data.raw[loc.orbit.parent.type][loc.orbit.parent.name].hidden
-			)
-		then
+		if ((loc.subgroup and loc.subgroup == "satellites") or (loc.orbit and loc.orbit.is_satellite))
+			and (loc.orbit and loc.orbit.parent and data.raw[loc.orbit.parent.type][loc.orbit.parent.name]
+				and not data.raw[loc.orbit.parent.type][loc.orbit.parent.name].hidden) then
 			loc.redrawn_connections_exclude = true
 		end
 	end
@@ -30,7 +24,7 @@ for _, connection in pairs(data.raw["space-connection"]) do
 	end
 end
 
---== End initial flags ==--
+-- == End initial flags ==--
 
 local function connection_length(from_name, to_name)
 	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]
@@ -43,10 +37,8 @@ local function connection_length(from_name, to_name)
 
 	-- Factorio currently uses linear paths in polar co-ordinates.
 
-	if
-		from_planet.distance == to_planet.distance
-		and (from_planet.orientation == to_planet.orientation or from_planet.distance == 0)
-	then
+	if from_planet.distance == to_planet.distance
+		and (from_planet.orientation == to_planet.orientation or from_planet.distance == 0) then
 		return 1 -- because 0 breaks the game
 	end
 
@@ -118,27 +110,20 @@ if data.raw["space-connection"] then
 		local to_loc = data.raw["planet"][connection.to] or data.raw["space-location"][connection.to]
 
 		if from_loc and to_loc then
-			if
-				from_loc.redrawn_connections_exclude
-				or to_loc.redrawn_connections_exclude
-				or from_loc.redrawn_connections_keep
-				or to_loc.redrawn_connections_keep
-				or connection.redrawn_connections_keep
-			then
+			if from_loc.redrawn_connections_exclude or to_loc.redrawn_connections_exclude
+				or from_loc.redrawn_connections_keep or to_loc.redrawn_connections_keep
+				or connection.redrawn_connections_keep then
 				log(
 					string.format(
 						"Redrawn Space Connections: Existing connection %s to %s kept due to exclusion flags",
-						connection.from,
-						connection.to
+						connection.from, connection.to
 					)
 				)
 
 				if connection.redrawn_connections_rescale then
 					log(
 						string.format(
-							"Redrawn Space Connections: Rescaling connection %s to %s",
-							connection.from,
-							connection.to
+							"Redrawn Space Connections: Rescaling connection %s to %s", connection.from, connection.to
 						)
 					)
 					-- Rescale will be applied after triangle inequality filtering
@@ -149,8 +134,7 @@ if data.raw["space-connection"] then
 
 				fixed_edges[connection.from .. "-" .. connection.to] = connection
 			else
-				saved_asteroid_definitions[connection.from .. "-" .. connection.to] =
-					connection.asteroid_spawn_definitions
+				saved_asteroid_definitions[connection.from .. "-" .. connection.to] = connection.asteroid_spawn_definitions
 				data.raw["space-connection"][name] = nil
 			end
 		end
@@ -173,12 +157,7 @@ local function calculate_virtual_coordinates(distance, orientation)
 end
 
 local function add_node(name, loc)
-	if
-		loc.redrawn_connections_exclude
-		or loc.redrawn_connections_keep
-		or name == "space-location-unknown"
-		or loc.hidden
-	then
+	if loc.redrawn_connections_exclude or loc.redrawn_connections_keep or name == "space-location-unknown" or loc.hidden then
 		return
 	end
 
@@ -190,13 +169,7 @@ local function add_node(name, loc)
 
 	local virtual_x, virtual_y = calculate_virtual_coordinates(loc.distance, loc.orientation)
 
-	local node = {
-		name = name,
-		real_x = x,
-		real_y = y,
-		polar_x = polar_x,
-		polar_y = polar_y,
-	}
+	local node = { name = name, real_x = x, real_y = y, polar_x = polar_x, polar_y = polar_y }
 
 	if REAL_SPACE then
 		node.virtual_x = x
@@ -282,27 +255,15 @@ local function calculate_triangulation(points)
 	local mid_x = (min_x + max_x) / 2
 	local mid_y = (min_y + max_y) / 2
 
-	local st_p1 = {
-		name = "dt_super_1",
-		virtual_x = mid_x - 2 * dmax,
-		virtual_y = mid_y - dmax,
-	}
-	local st_p2 = {
-		name = "dt_super_2",
-		virtual_x = mid_x,
-		virtual_y = mid_y + 2 * dmax,
-	}
-	local st_p3 = {
-		name = "dt_super_3",
-		virtual_x = mid_x + 2 * dmax,
-		virtual_y = mid_y - dmax,
-	}
+	local st_p1 = { name = "dt_super_1", virtual_x = mid_x - 2 * dmax, virtual_y = mid_y - dmax }
+	local st_p2 = { name = "dt_super_2", virtual_x = mid_x, virtual_y = mid_y + 2 * dmax }
+	local st_p3 = { name = "dt_super_3", virtual_x = mid_x + 2 * dmax, virtual_y = mid_y - dmax }
 
 	local triangles = {}
 	table.insert(triangles, {
 		p1 = st_p1,
 		p2 = st_p2,
-		p3 = st_p3,
+		p3 = st_p3
 	})
 
 	for _, p in ipairs(points) do
@@ -322,9 +283,9 @@ local function calculate_triangulation(points)
 				edgeCount[key] = {
 					edge = {
 						from = a,
-						to = b,
+						to = b
 					},
-					count = 1,
+					count = 1
 				}
 			end
 		end
@@ -355,18 +316,15 @@ local function calculate_triangulation(points)
 			table.insert(triangles, {
 				p1 = edge.from,
 				p2 = edge.to,
-				p3 = p,
+				p3 = p
 			})
 		end
 	end
 
 	local finalTriangles = {}
 	for _, tri in ipairs(triangles) do
-		if
-			tri.p1.name:sub(1, 8) ~= "dt_super"
-			and tri.p2.name:sub(1, 8) ~= "dt_super"
-			and tri.p3.name:sub(1, 8) ~= "dt_super"
-		then
+		if tri.p1.name:sub(1, 8) ~= "dt_super" and tri.p2.name:sub(1, 8) ~= "dt_super"
+			and tri.p3.name:sub(1, 8) ~= "dt_super" then
 			table.insert(finalTriangles, tri)
 		end
 	end
@@ -380,10 +338,7 @@ local uniqueEdges = {}
 for _, tri in ipairs(triangulation) do
 	local function addEdge(nameA, nameB)
 		local key = nameA < nameB and (nameA .. "|" .. nameB) or (nameB .. "|" .. nameA)
-		uniqueEdges[key] = {
-			from = nameA,
-			to = nameB,
-		}
+		uniqueEdges[key] = { from = nameA, to = nameB }
 	end
 	addEdge(tri.p1.name, tri.p2.name)
 	addEdge(tri.p2.name, tri.p3.name)
@@ -402,10 +357,8 @@ for _, connection in pairs(fixed_edges) do
 	-- Remove any existing edges that match our fixed edge
 	for i = #edges, 1, -1 do
 		local edge = edges[i]
-		if
-			(edge.from == connection.from and edge.to == connection.to)
-			or (edge.from == connection.to and edge.to == connection.from)
-		then
+		if (edge.from == connection.from and edge.to == connection.to)
+			or (edge.from == connection.to and edge.to == connection.from) then
 			table.remove(edges, i)
 		end
 	end
@@ -423,10 +376,7 @@ end
 
 local acceptedAngles = {}
 for _, node in ipairs(nodes) do
-	acceptedAngles[node.name] = {
-		real = {},
-		virtual = {},
-	}
+	acceptedAngles[node.name] = { real = {}, virtual = {} }
 end
 
 for _, connection in pairs(fixed_edges) do
@@ -456,7 +406,7 @@ end
 -- log("Edges 3:")
 -- log(serpent.block(edges))
 
-table.sort(edges, function(a, b)
+table.sort(edges, function (a, b)
 	return a.length < b.length
 end)
 
@@ -468,12 +418,12 @@ for _, edge in ipairs(edges) do
 	table.insert(graph[edge.from], {
 		neighbor = edge.to,
 		weight = snapped_length,
-		original_length = edge.length,
+		original_length = edge.length
 	})
 	table.insert(graph[edge.to], {
 		neighbor = edge.from,
 		weight = snapped_length,
-		original_length = edge.length,
+		original_length = edge.length
 	})
 end
 
@@ -499,10 +449,8 @@ local function find_shortest_path(source, target, exclude_edge)
 		visited[current] = true
 
 		for _, edge in ipairs(graph[current]) do
-			if
-				not (current == exclude_edge.from and edge.neighbor == exclude_edge.to)
-				and not (current == exclude_edge.to and edge.neighbor == exclude_edge.from)
-			then
+			if not (current == exclude_edge.from and edge.neighbor == exclude_edge.to)
+				and not (current == exclude_edge.to and edge.neighbor == exclude_edge.from) then
 				local newDist = distances[current] + edge.original_length
 				if newDist < distances[edge.neighbor] then
 					distances[edge.neighbor] = newDist
@@ -517,7 +465,7 @@ local triangle_filtered_edges = {}
 
 local TRIANGLE_INEQUALITY_LENGTH_MULTIPLIER = 1.00
 
-table.sort(edges, function(a, b)
+table.sort(edges, function (a, b)
 	return a.length > b.length
 end)
 
@@ -533,10 +481,7 @@ for _, edge in ipairs(edges) do
 			log(
 				string.format(
 					"Redrawn Space Connections: Connection %s to %s filtered out by triangle inequality. Direct length: %d, Alternative path length: %d",
-					edge.from,
-					edge.to,
-					edge.length,
-					alternative_length
+					edge.from, edge.to, edge.length, alternative_length
 				)
 			)
 		end
@@ -691,16 +636,16 @@ local function interpolated_asteroid_definition(a, b)
 					angle_when_stopped = b.angle_when_stopped,
 					speed = b.speed,
 					probability = 0,
-					distance = 0.1,
+					distance = 0.1
 				},
 				{
 					angle_when_stopped = b.angle_when_stopped,
 					speed = b.speed,
 					probability = b.probability,
-					distance = 0.9,
-				},
+					distance = 0.9
+				}
 			},
-			type = b.type,
+			type = b.type
 		}
 	elseif not b then
 		return {
@@ -710,16 +655,16 @@ local function interpolated_asteroid_definition(a, b)
 					angle_when_stopped = a.angle_when_stopped,
 					speed = a.speed,
 					probability = a.probability,
-					distance = 0.1,
+					distance = 0.1
 				},
 				{
 					angle_when_stopped = a.angle_when_stopped,
 					speed = a.speed,
 					probability = 0,
-					distance = 0.9,
-				},
+					distance = 0.9
+				}
 			},
-			type = a.type,
+			type = a.type
 		}
 	end
 
@@ -730,22 +675,22 @@ local function interpolated_asteroid_definition(a, b)
 				angle_when_stopped = a.angle_when_stopped,
 				speed = a.speed,
 				probability = a.probability,
-				distance = 0.1,
+				distance = 0.1
 			},
 			{
 				angle_when_stopped = a.angle_when_stopped,
 				speed = a.speed,
 				probability = a.probability + b.probability, -- Smaller than some vanilla bump curves, larger than some vanilla flat curves
-				distance = 0.5,
+				distance = 0.5
 			},
 			{
 				angle_when_stopped = b.angle_when_stopped,
 				speed = b.speed,
 				probability = b.probability,
-				distance = 0.9,
-			},
+				distance = 0.9
+			}
 		},
-		type = a.type or b.type,
+		type = a.type or b.type
 	}
 end
 
@@ -797,14 +742,10 @@ local function distance_from_origin(prototype)
 	local origin_orientation = origin and origin.orientation or 0
 
 	-- thank you PlanetsLib, for this magic function
-	local origin_x, origin_y = orbits.get_rectangular_position_from_polar(
-		origin_distance,
-		origin_orientation
-	)
+	local origin_x, origin_y = orbits.get_rectangular_position_from_polar(origin_distance, origin_orientation)
 
 	local prototype_x, prototype_y = orbits.get_rectangular_position_from_polar(
-		prototype.distance or 0,
-		prototype.orientation or 0
+		prototype.distance or 0, prototype.orientation or 0
 	)
 	-- basic trigonometry for distance between two points
 	return math.sqrt((prototype_x - origin_x) ^ 2 + (prototype_y - origin_y) ^ 2)
@@ -818,7 +759,7 @@ local function get_asteroid_definitions(from, to)
 	local to_distance = distance_from_origin(to_prototype)
 
 	local should_flip = from_distance > to_distance
-	
+
 	-- first decide if should_flip, then use the appropriate asteroid_spawn_definitions
 	if saved_asteroid_definitions[from .. "-" .. to] then
 		return saved_asteroid_definitions[from .. "-" .. to], should_flip
@@ -831,20 +772,18 @@ local function get_asteroid_definitions(from, to)
 	if from == "solar-system-edge" or to == "solar-system-edge" then
 		return asteroid_util.spawn_definitions(asteroid_util.aquilo_solar_system_edge), should_flip
 	end
-	
+
 	if from_prototype.asteroid_spawn_definitions and to_prototype.asteroid_spawn_definitions then
 		if should_flip then
 			log("Redrawn Space Connections: Interpolating asteroids from " .. to .. " to " .. from)
 			local out = interpolated_asteroid_definitions(
-				to_prototype.asteroid_spawn_definitions,
-				from_prototype.asteroid_spawn_definitions
+				to_prototype.asteroid_spawn_definitions, from_prototype.asteroid_spawn_definitions
 			)
 			return out, true
 		else
 			log("Redrawn Space Connections: Interpolating asteroids from " .. from .. " to " .. to)
 			local out = interpolated_asteroid_definitions(
-				from_prototype.asteroid_spawn_definitions,
-				to_prototype.asteroid_spawn_definitions
+				from_prototype.asteroid_spawn_definitions, to_prototype.asteroid_spawn_definitions
 			)
 			return out, false
 		end
@@ -885,27 +824,27 @@ for _, edge in ipairs(new_edges) do
 		to = to,
 		order = from .. "-" .. to,
 		length = snap_length(edge.length),
-		asteroid_spawn_definitions = definitions,
+		asteroid_spawn_definitions = definitions
 	}
 
 	if from_prototype.icon and to_prototype.icon then
 		connection.icons = {
 			{
 				icon = "__space-age__/graphics/icons/planet-route.png",
-				icon_size = 64,
+				icon_size = 64
 			},
 			{
 				icon = from_prototype.icon,
 				icon_size = from_prototype.icon_size or 64,
 				scale = 0.333 * (64 / (from_prototype.icon_size or 64)),
-				shift = { -6, -6 },
+				shift = { -6, -6 }
 			},
 			{
 				icon = to_prototype.icon,
 				icon_size = to_prototype.icon_size or 64,
 				scale = 0.333 * (64 / (to_prototype.icon_size or 64)),
-				shift = { 6, 6 },
-			},
+				shift = { 6, 6 }
+			}
 		}
 	else
 		connection.icon = "__space-age__/graphics/icons/planet-route.png"
@@ -917,7 +856,7 @@ end
 
 data:extend(connections_to_add)
 
---== Set order on all space connections based on distance from origin ==--
+-- == Set order on all space connections based on distance from origin ==--
 
 for _, connection in pairs(data.raw["space-connection"] or {}) do
 	local from_prototype = data.raw.planet[connection.from] or data.raw["space-location"][connection.from]
@@ -930,16 +869,11 @@ for _, connection in pairs(data.raw["space-connection"] or {}) do
 		local lower_distance = math.min(from_distance, to_distance)
 		local higher_distance = math.max(from_distance, to_distance)
 
-		connection.order = string.format(
-			"%010.5f-%010.5f-%s",
-			lower_distance,
-			higher_distance,
-			connection.name
-		)
+		connection.order = string.format("%010.5f-%010.5f-%s", lower_distance, higher_distance, connection.name)
 	end
 end
 
---== DEBUG ==--
+-- == DEBUG ==--
 
 -- for _, connection in pairs(data.raw["space-connection"] or {}) do
 -- 	-- Un-snap lengths
