@@ -26,6 +26,14 @@ end
 
 -- == End initial flags ==--
 
+-- simply pipes the output of new absolute position function (which takes origin into account),
+-- and converts it from rectangular to polar (used for connection-length calculations)
+local function get_absolute_polar(location)
+    local x, y = orbits.get_absolute_position(location)
+    if x == 0 and y == 0 then return 0, 0 end
+    return orbits.get_polar_position_from_rectangular(x, y)
+end
+
 local function connection_length(from_name, to_name)
 	local from_planet = data.raw.planet[from_name] or data.raw["space-location"][from_name]
 	local to_planet = data.raw.planet[to_name] or data.raw["space-location"][to_name]
@@ -35,17 +43,22 @@ local function connection_length(from_name, to_name)
 		return nil
 	end
 
+	-- need to determine absolute position values based on origin, in polar coords
+	-- then we just plug in the new values into the old logic
+    local from_distance, from_orientation = get_absolute_polar(from_planet)
+    local to_distance, to_orientation = get_absolute_polar(to_planet)
+
 	-- Factorio currently uses linear paths in polar co-ordinates.
 
-	if from_planet.distance == to_planet.distance
-		and (from_planet.orientation == to_planet.orientation or from_planet.distance == 0) then
+	if from_distance == to_distance
+		and (from_orientation == to_orientation or from_distance == 0) then
 		return 1 -- because 0 breaks the game
 	end
 
-	local angle1 = (from_planet.orientation % 1) * 2 * math.pi
-	local angle2 = (to_planet.orientation % 1) * 2 * math.pi
-	local r1 = from_planet.distance or 0
-	local r2 = to_planet.distance or 0
+	local angle1 = (from_orientation % 1) * 2 * math.pi
+	local angle2 = (to_orientation % 1) * 2 * math.pi
+	local r1 = from_distance
+	local r2 = to_distance
 	local angle_diff = math.abs(angle2 - angle1)
 
 	if angle_diff > math.pi then
@@ -161,13 +174,15 @@ local function add_node(name, loc)
 		return
 	end
 
-	local angle = loc.orientation * 2 * math.pi
-	local x = loc.distance * math.sin(angle)
-	local y = -loc.distance * math.cos(angle)
-	local polar_x = loc.distance
+	-- we need both rectangular and polar coords in these functions
+	-- so we simply use the new absolute functions, then plug and chug
+	local x, y = orbits.get_absolute_position(loc)
+	local distance, orientation = get_absolute_polar(loc)
+	local angle = orientation * 2 * math.pi
+	local polar_x = distance
 	local polar_y = angle
 
-	local virtual_x, virtual_y = calculate_virtual_coordinates(loc.distance, loc.orientation)
+	local virtual_x, virtual_y = calculate_virtual_coordinates(distance, orientation)
 
 	local node = { name = name, real_x = x, real_y = y, polar_x = polar_x, polar_y = polar_y }
 
@@ -732,31 +747,28 @@ local function interpolated_asteroid_definitions(a, b)
 	return avg
 end
 
-local function distance_from_origin(prototype)
-	-- safety fallback in case origin planet doesn't exist
-	local origin = data.raw.planet.nauvis
+local function distance_from_starting_planet(prototype)
+	-- safety fallback in case starting planet doesn't exist
+	local starting_planet = data.raw.planet.nauvis
 	if mods["any-planet-start"] and settings.startup["aps-planet"].value ~= "none" then
-		origin = data.raw.planet[settings.startup["aps-planet"].value] or origin
+		starting_planet = data.raw.planet[settings.startup["aps-planet"].value] or starting_planet
 	end
-	local origin_distance = origin and origin.distance or 0
-	local origin_orientation = origin and origin.orientation or 0
 
 	-- thank you PlanetsLib, for this magic function
-	local origin_x, origin_y = orbits.get_rectangular_position_from_polar(origin_distance, origin_orientation)
+	local starting_x, starting_y = orbits.get_absolute_position(starting_planet)
 
-	local prototype_x, prototype_y = orbits.get_rectangular_position_from_polar(
-		prototype.distance or 0, prototype.orientation or 0
-	)
+	local prototype_x, prototype_y = orbits.get_absolute_position(prototype)
+
 	-- basic trigonometry for distance between two points
-	return math.sqrt((prototype_x - origin_x) ^ 2 + (prototype_y - origin_y) ^ 2)
+	return math.sqrt((prototype_x - starting_x) ^ 2 + (prototype_y - starting_y) ^ 2)
 end
 
 local function get_asteroid_definitions(from, to)
 	local from_prototype = data.raw.planet[from] or data.raw["space-location"][from]
 	local to_prototype = data.raw.planet[to] or data.raw["space-location"][to]
 
-	local from_distance = distance_from_origin(from_prototype)
-	local to_distance = distance_from_origin(to_prototype)
+	local from_distance = distance_from_starting_planet(from_prototype)
+	local to_distance = distance_from_starting_planet(to_prototype)
 
 	local should_flip = from_distance > to_distance
 
@@ -856,15 +868,15 @@ end
 
 data:extend(connections_to_add)
 
--- == Set order on all space connections based on distance from origin ==--
+-- == Set order on all space connections based on distance from starting planet ==--
 
 for _, connection in pairs(data.raw["space-connection"] or {}) do
 	local from_prototype = data.raw.planet[connection.from] or data.raw["space-location"][connection.from]
 	local to_prototype = data.raw.planet[connection.to] or data.raw["space-location"][connection.to]
 
 	if from_prototype and to_prototype then
-		local from_distance = distance_from_origin(from_prototype)
-		local to_distance = distance_from_origin(to_prototype)
+		local from_distance = distance_from_starting_planet(from_prototype)
+		local to_distance = distance_from_starting_planet(to_prototype)
 
 		local lower_distance = math.min(from_distance, to_distance)
 		local higher_distance = math.max(from_distance, to_distance)
