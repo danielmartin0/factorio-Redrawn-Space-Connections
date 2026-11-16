@@ -24,6 +24,12 @@ for _, connection in pairs(data.raw["space-connection"]) do
 	end
 end
 
+-- Must ensure we preserve connections referenced by achievements.
+for _, achievement in pairs(data.raw["space-connection-distance-traveled-achievement"] or {}) do
+    local connection = data.raw["space-connection"][achievement.tracked_connection]
+    if connection then connection.redrawn_connections_keep = true end
+end
+
 -- == End initial flags ==--
 
 -- == Geometry helpers ==--
