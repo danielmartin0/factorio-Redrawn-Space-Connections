@@ -24,7 +24,45 @@ for _, connection in pairs(data.raw["space-connection"]) do
 	end
 end
 
+-- Must ensure we preserve connections referenced by achievements.
+for _, achievement in pairs(data.raw["space-connection-distance-traveled-achievement"] or {}) do
+    local connection = data.raw["space-connection"][achievement.tracked_connection]
+    if connection then connection.redrawn_connections_keep = true end
+end
+
 -- == End initial flags ==--
+
+-- == Geometry helpers ==--
+
+local EPS = 1e-10 -- epsilon value, used as small number tolerance value
+local function edge_key(a, b)
+    a = type(a) == "table" and a.name or a
+    b = type(b) == "table" and b.name or b
+
+    return a < b and (a .. "|" .. b) or (b .. "|" .. a)
+end
+
+local function orient(a, b, c)
+    return (b.virtual_x - a.virtual_x) * (c.virtual_y - a.virtual_y)
+         - (b.virtual_y - a.virtual_y) * (c.virtual_x - a.virtual_x)
+end
+
+local function opposite(x, y)
+    return (x > EPS and y < -EPS) or (x < -EPS and y > EPS)
+end
+
+local function crosses(a, b, c, d)
+    if a == c or a == d or b == c or b == d then return false end
+
+    return opposite(orient(a, b, c), orient(a, b, d)) and opposite(orient(c, d, a), orient(c, d, b))
+end
+
+local function inside_segment(a, b, p)
+    if math.abs(orient(a, b, p)) > EPS then return false end
+
+    return (p.virtual_x - a.virtual_x) * (p.virtual_x - b.virtual_x)
+         + (p.virtual_y - a.virtual_y) * (p.virtual_y - b.virtual_y) < -EPS
+end
 
 -- simply pipes the output of new absolute position function (which takes origin into account),
 -- and converts it from rectangular to polar (used for connection-length calculations)
@@ -291,7 +329,7 @@ local function calculate_triangulation(points)
 
 		local edgeCount = {}
 		local function addEdge(a, b)
-			local key = a.name < b.name and (a.name .. "|" .. b.name) or (b.name .. "|" .. a.name)
+			local key = edge_key(a, b)
 			if edgeCount[key] then
 				edgeCount[key].count = edgeCount[key].count + 1
 			else
@@ -347,12 +385,230 @@ local function calculate_triangulation(points)
 	return finalTriangles
 end
 
+-- Build adjacency between triangles sharing an edge.
+local function edge_index(triangles)
+    local lookup, entries = {}, {}
+    local invalid = false
+
+    local function add(i, a, b, c)
+        local key = edge_key(a, b)
+        local e = lookup[key]
+
+        if not e then
+            e = {key = key, a = a, b = b, i1 = i, c = c}
+            lookup[key] = e
+            entries[#entries + 1] = e
+        else
+            if e.i2 then invalid = true return end
+            e.i2 = i
+            e.d = c
+        end
+    end
+
+    for i, t in ipairs(triangles) do
+        add(i, t.p1, t.p2, t.p3)
+        add(i, t.p2, t.p3, t.p1)
+        add(i, t.p3, t.p1, t.p2)
+    end
+
+    if invalid then return nil end
+    return lookup, entries
+end
+
+-- Replace two triangles' shared diagonal with the other diagonal.
+local function flip(triangles, e)
+    triangles[e.i1] = { p1 = e.c, p2 = e.d, p3 = e.a }
+    triangles[e.i2] = { p1 = e.d, p2 = e.c, p3 = e.b }
+end
+
+-- Insert a mandatory edge by flipping diagonals that intersect it.
+local function recover(triangles, a, b, random_index, protected)
+    local limit = math.max(50, #triangles * 30)
+
+    for _ = 1, limit do
+        local lookup, entries = edge_index(triangles)
+		if not lookup then return false end
+        if lookup[edge_key(a, b)] then return true end
+
+        local reducing, neutral = {}, {}
+
+        for _, e in ipairs(entries) do
+            if e.i2 and not protected[e.key] and crosses(a, b, e.a, e.b) and crosses(e.a, e.b, e.c, e.d) then
+                if crosses(a, b, e.c, e.d) then
+                    neutral[#neutral + 1] = e
+                else
+                    reducing[#reducing + 1] = e
+                end
+            end
+        end
+
+        -- Prefer flips that eliminate an intersection.
+        -- Neutral flips can expose a previously unavailable flip.
+        local choices = #reducing > 0 and reducing or neutral
+        if #choices == 0 then return false end
+
+        flip(triangles, choices[random_index(#choices)])
+    end
+
+    return false
+end
+
+-- In-circle test for locally Delaunay edge legalization.
+local function in_circle(a, b, c, d)
+    local ax, ay = a.virtual_x - d.virtual_x, a.virtual_y - d.virtual_y
+    local bx, by = b.virtual_x - d.virtual_x, b.virtual_y - d.virtual_y
+    local cx, cy = c.virtual_x - d.virtual_x, c.virtual_y - d.virtual_y
+    local det = (ax * ax + ay * ay) * (bx * cy - by * cx)
+        - (bx * bx + by * by) * (ax * cy - ay * cx)
+        + (cx * cx + cy * cy) * (ax * by - ay * bx)
+    local side = orient(a, b, c)
+    return (side > EPS and det > EPS) or (side < -EPS and det < -EPS)
+end
+
+-- Restore the Delaunay condition without flipping mandatory edges.
+local function legalize(triangles, protected)
+    local limit = math.max(50, #triangles * 30)
+
+    for _ = 1, limit do
+        local _, entries = edge_index(triangles)
+        local changed = false
+		if not entries then return false end
+        for _, e in ipairs(entries) do
+            if e.i2 and not protected[e.key] and crosses(e.a, e.b, e.c, e.d)
+				and in_circle(e.a, e.b, e.c, e.d) then
+                flip(triangles, e)
+                changed = true
+                break
+            end
+        end
+
+        if not changed then return true end
+    end
+
+    return false
+end
+
+local function integrate_kept_edges(original, nodes, fixed_edges)
+    local by_name = {}
+    for _, p in ipairs(nodes) do
+        by_name[p.name] = p
+    end
+
+    local constraints, protected = {}, {}
+
+    for _, connection in pairs(fixed_edges) do
+        local a = by_name[connection.from]
+        local b = by_name[connection.to]
+        if a and b and not connection.hidden then
+            local key = edge_key(a, b)
+            if not protected[key] then
+                protected[key] = true
+                constraints[#constraints + 1] = {a = a, b = b, key = key}
+            end
+        elseif connection.redrawn_connections_keep
+            and not connection.hidden then
+            log("RSC: Constraint skipped (endpoint excluded): "..connection.from.." -> "..connection.to)
+        end
+    end
+
+    -- No applicable constraints: preserve exact original behavior.
+    if #constraints == 0 then return original end
+
+    table.sort(constraints, function(a, b)
+		return a.key < b.key
+    end)
+
+    local function fallback(reason)
+        log("RSC: Constraint integration failed: " .. reason)
+        log("RSC: Falling back to original triangulation")
+        return original
+    end
+
+    -- Reject geometry that cannot form ordinary mandatory mesh edges.
+    for i, c in ipairs(constraints) do
+        if c.a.virtual_x == c.b.virtual_x and c.a.virtual_y == c.b.virtual_y then
+            return fallback("Coincident endpoints: " .. c.key)
+        end
+
+        for _, p in ipairs(nodes) do
+            if p ~= c.a and p ~= c.b and inside_segment(c.a, c.b, p) then
+                return fallback("Planet lies on route: " .. c.key)
+            end
+        end
+
+        for j = 1, i - 1 do
+            local other = constraints[j]
+            if crosses(c.a, c.b, other.a, other.b) then
+                return fallback("Conflicting routes: "..c.key.." and "..other.key)
+            end
+        end
+    end
+
+    -- Retry with different deterministic choices if edge recovery stalls.
+    for attempt = 1, 8 do
+        local triangles = {}
+
+        for i, t in ipairs(original) do
+            triangles[i] = { p1 = t.p1, p2 = t.p2, p3 = t.p3 }
+        end
+
+        local state = attempt * 104729 + #nodes * 1543
+
+        local function random_index(count)
+            state = (1664525 * state + 1013904223) % 4294967296
+            return (state % count) + 1
+        end
+
+        local success = true
+
+        for _, c in ipairs(constraints) do
+            if not recover(triangles, c.a, c.b, random_index, protected) then
+                success = false
+                break
+            end
+        end
+
+        if success then success = legalize(triangles, protected) end
+        if success then
+            local lookup = edge_index(triangles)
+            for _, c in ipairs(constraints) do
+                if not lookup[c.key] then
+                    success = false
+                    break
+                end
+            end
+        end
+
+		if success then
+            local lookup = edge_index(triangles)
+            if not lookup then
+                success = false
+            else
+                for _, c in ipairs(constraints) do
+                    if not lookup[c.key] then
+                        success = false
+                        break
+                    end
+                end
+            end
+        end
+
+        if success then
+            log("RSC: Integrated "..#constraints.." preserved routes (attempt "..attempt..")")
+            return triangles
+        end
+    end
+
+    return fallback("Edge recovery did not converge after 8 attempts")
+end
+
 local triangulation = calculate_triangulation(nodes)
+triangulation = integrate_kept_edges(triangulation, nodes, fixed_edges)
 
 local uniqueEdges = {}
 for _, tri in ipairs(triangulation) do
 	local function addEdge(nameA, nameB)
-		local key = nameA < nameB and (nameA .. "|" .. nameB) or (nameB .. "|" .. nameA)
+		local key = edge_key(nameA, nameB)
 		uniqueEdges[key] = { from = nameA, to = nameB }
 	end
 	addEdge(tri.p1.name, tri.p2.name)

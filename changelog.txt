@@ -1,17 +1,20 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.5.3
-Date: ????
+Date: 2026-11-16
   Changes:
+    - Implemented taking preserved connections into account for route generation logic.
+    - Automatically preserve connections registered for achievements.
+    - Bumped minimum required version of PlanetsLib to the latest with orbit-related fixes.
 ---------------------------------------------------------------------------------------------------
 Version: 2.5.2
 Date: 2026-10-01
   Changes:
-    - Changelog fixed.
+    - Fixed previous changelog entry.
 ---------------------------------------------------------------------------------------------------
 Version: 2.5.1
 Date: 2026-09-28
   Changes:
-    - Better compatibility with Factorio 2.1.
+    - Improved compatibility with Factorio 2.1. (Thanks Kryzeth!)
 ---------------------------------------------------------------------------------------------------
 Version: 2.5.0
 Date: 2026-06-24
