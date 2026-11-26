@@ -1,7 +1,10 @@
 ---------------------------------------------------------------------------------------------------
 Version: 2.5.4
-Date: ????
-  Changes:
+Date: 2026-11-26
+  Bugfixes:
+    - Fixed error on load when preserving connections with undefined length.
+    - Updated SSEdge connection multiplier from 4.8 to 4.85.
+      This corrects the Aquilo-SSEdge connection length from 99,000km to the original 100,000km.
 ---------------------------------------------------------------------------------------------------
 Version: 2.5.3
 Date: 2026-11-19
