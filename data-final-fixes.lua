@@ -174,11 +174,21 @@ if data.raw["space-connection"] then
 				if connection.redrawn_connections_rescale then
 					log(
 						string.format(
-							"Redrawn Space Connections: Rescaling connection %s to %s", connection.from, connection.to
+							"Redrawn Space Connections: Rescaling connection %s to %s",
+							connection.from, connection.to
 						)
 					)
 					-- Rescale will be applied after triangle inequality filtering
 					connection.length = connection_length(connection.from, connection.to)
+				elseif connection.length == nil then
+					log(
+						string.format(
+							"Redrawn Space Connections: Applying default length of 600 to connection %s to %s",
+							connection.from, connection.to
+						)
+					)
+					-- Apply default connection length if it was left undefined
+					connection.length = 600
 				end
 
 				connection.fixed = true
